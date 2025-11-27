@@ -1,0 +1,102 @@
+#-----------------------------------------------------------
+# Vivado v2020.1 (64-bit)
+# SW Build 2902540 on Wed May 27 19:54:49 MDT 2020
+# IP Build 2902112 on Wed May 27 22:43:36 MDT 2020
+# Start of session at: Thu Nov 27 20:15:54 2025
+# Process ID: 10944
+# Current directory: C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator
+# Command line: vivado.exe -gui_launcher_event rodinguilauncherevent29448 C:\Users\user\OneDrive\  2 2\logic_circuit\fpga-car-simulator\Term_project.xpr
+# Log file: C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/vivado.log
+# Journal file: C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator\vivado.jou
+#-----------------------------------------------------------
+start_gui
+open_project {C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Term_project.xpr}
+INFO: [Project 1-313] Project file moved from 'C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project' since last save.
+Scanning sources...
+Finished scanning sources
+WARNING: [filemgmt 56-2] Default IP Output Path : Could not find the directory 'C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Term_project.srcs/sources_1', nor could it be found using path 'C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Term_project.srcs/sources_1'.
+INFO: [IP_Flow 19-234] Refreshing IP repositories
+INFO: [IP_Flow 19-1704] No user IP repositories specified
+INFO: [IP_Flow 19-2313] Loaded Vivado IP repository 'C:/Xilinx/Vivado/2020.1/data/ip'.
+open_project: Time (s): cpu = 00:00:21 ; elapsed = 00:00:11 . Memory (MB): peak = 1025.660 ; gain = 0.000
+update_compile_order -fileset sources_1
+update_compile_order -fileset sources_1
+update_compile_order -fileset sources_1
+synth_design -rtl -name rtl_1
+Command: synth_design -rtl -name rtl_1
+Starting synth_design
+Using part: xc7s75fgga484-1
+Top: Car_Simulator_Top
+INFO: [Device 21-403] Loading part xc7s75fgga484-1
+---------------------------------------------------------------------------------
+Starting RTL Elaboration : Time (s): cpu = 00:00:05 ; elapsed = 00:00:06 . Memory (MB): peak = 1399.262 ; gain = 235.836
+---------------------------------------------------------------------------------
+INFO: [Synth 8-6157] synthesizing module 'Car_Simulator_Top' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Top_module.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Clock_Gen' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Clock_Gen.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Clock_Gen' (1#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Clock_Gen.v:1]
+INFO: [Synth 8-6157] synthesizing module 'SPI_ADC_Controller' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/SPI_ADC_Controller.v:1]
+INFO: [Synth 8-155] case statement is not full and has no default [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/SPI_ADC_Controller.v:27]
+INFO: [Synth 8-6155] done synthesizing module 'SPI_ADC_Controller' (2#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/SPI_ADC_Controller.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Vehicle_Logic' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Vehicle_Logic.v:1]
+	Parameter IDLE_RPM bound to: 800 - type: integer 
+INFO: [Synth 8-6155] done synthesizing module 'Vehicle_Logic' (3#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Vehicle_Logic.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Turn_Signal_Logic' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Turn_signal_logic.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Turn_Signal_Logic' (4#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Turn_signal_logic.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Light_Controller' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Light_Controller.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Light_Controller' (5#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Light_Controller.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Display_Unit' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Display_unit.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Display_Unit' (6#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Display_unit.v:1]
+INFO: [Synth 8-6157] synthesizing module 'LCD_Module' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/LCD_module.v:1]
+	Parameter S_DELAY_POW bound to: 6'b000000 
+	Parameter S_INIT_1 bound to: 6'b000001 
+	Parameter S_INIT_2 bound to: 6'b000010 
+	Parameter S_INIT_3 bound to: 6'b000011 
+	Parameter S_FUNC_SET bound to: 6'b000100 
+	Parameter S_DISP_OFF bound to: 6'b000101 
+	Parameter S_CLR_DISP bound to: 6'b000110 
+	Parameter S_ENTRY_MODE bound to: 6'b000111 
+	Parameter S_DISP_ON bound to: 6'b001000 
+	Parameter S_IDLE bound to: 6'b001001 
+	Parameter S_LINE1_CMD bound to: 6'b001010 
+	Parameter S_LINE1_WR bound to: 6'b001011 
+	Parameter S_LINE2_CMD bound to: 6'b001100 
+	Parameter S_LINE2_WR bound to: 6'b001101 
+INFO: [Synth 8-155] case statement is not full and has no default [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/LCD_module.v:51]
+INFO: [Synth 8-6155] done synthesizing module 'LCD_Module' (7#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/LCD_module.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Sound_Unit' [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Sound_unit.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Sound_Unit' (8#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Sound_unit.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Car_Simulator_Top' (9#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Top_module.v:1]
+---------------------------------------------------------------------------------
+Finished RTL Elaboration : Time (s): cpu = 00:00:06 ; elapsed = 00:00:08 . Memory (MB): peak = 1470.793 ; gain = 307.367
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:07 ; elapsed = 00:00:09 . Memory (MB): peak = 1489.344 ; gain = 325.918
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 1 : Time (s): cpu = 00:00:07 ; elapsed = 00:00:09 . Memory (MB): peak = 1489.344 ; gain = 325.918
+---------------------------------------------------------------------------------
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.022 . Memory (MB): peak = 1489.344 ; gain = 0.000
+INFO: [Project 1-570] Preparing netlist for logic optimization
+INFO: [Opt 31-141] Inserted 2 OBUFs to IO ports without IO buffers.
+
+Processing XDC Constraints
+Initializing timing engine
+Parsing XDC File [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Term_project.srcs/constrs_1/new/car.xdc]
+Finished Parsing XDC File [C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Term_project.srcs/constrs_1/new/car.xdc]
+Completed Processing XDC Constraints
+
+INFO: [Opt 31-138] Pushed 0 inverter(s) to 0 load pin(s).
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.001 . Memory (MB): peak = 1605.973 ; gain = 0.000
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+RTL Elaboration Complete:  : Time (s): cpu = 00:00:20 ; elapsed = 00:00:16 . Memory (MB): peak = 1605.973 ; gain = 442.547
+25 Infos, 0 Warnings, 0 Critical Warnings and 0 Errors encountered.
+synth_design completed successfully
+synth_design: Time (s): cpu = 00:00:26 ; elapsed = 00:00:38 . Memory (MB): peak = 1605.973 ; gain = 580.312
+close_design
+exit
+INFO: [Common 17-206] Exiting Vivado at Thu Nov 27 22:53:47 2025...

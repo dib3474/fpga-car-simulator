@@ -1,5 +1,5 @@
 module Turn_Signal_Logic (
-    input clk, input rst,
+    input clk, input rst, 
     input sw_left, input sw_right, input sw_hazard, input ess_active,
     output wire led_left, output wire led_right
 );

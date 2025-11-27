@@ -1,0 +1,18 @@
+#-----------------------------------------------------------
+# Vivado v2020.1 (64-bit)
+# SW Build 2902540 on Wed May 27 19:54:49 MDT 2020
+# IP Build 2902112 on Wed May 27 22:43:36 MDT 2020
+# Start of session at: Thu Nov 27 20:15:54 2025
+# Process ID: 10944
+# Current directory: C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator
+# Command line: vivado.exe -gui_launcher_event rodinguilauncherevent29448 C:\Users\user\OneDrive\  2 2\logic_circuit\fpga-car-simulator\Term_project.xpr
+# Log file: C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/vivado.log
+# Journal file: C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator\vivado.jou
+#-----------------------------------------------------------
+start_gui
+open_project {C:/Users/user/OneDrive/  2 2/logic_circuit/fpga-car-simulator/Term_project.xpr}
+update_compile_order -fileset sources_1
+update_compile_order -fileset sources_1
+update_compile_order -fileset sources_1
+synth_design -rtl -name rtl_1
+close_design

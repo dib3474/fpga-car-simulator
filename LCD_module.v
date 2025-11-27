@@ -1,45 +1,54 @@
 module LCD_Module (
-    input clk, input rst, input [31:0] odometer, input [7:0] fuel, input is_side_brake,
+    input clk, input rst, input engine_on,
+    input [31:0] odometer, input [7:0] fuel, input is_side_brake,
     output reg lcd_rs, output reg lcd_rw, output reg lcd_e, output reg [7:0] lcd_data
 );
-    parameter [5:0] S_DELAY_POW=0, S_INIT_1=1, S_INIT_2=2, S_INIT_3=3, S_FUNC_SET=4, S_DISP_OFF=5, 
-                    S_CLR_DISP=6, S_ENTRY_MODE=7, S_DISP_ON=8, S_IDLE=9, S_LINE1_CMD=10, S_LINE1_WR=11, 
-                    S_LINE2_CMD=12, S_LINE2_WR=13;
+
+    parameter [5:0] S_DELAY_POW=0, S_INIT_1=1, S_INIT_2=2, S_INIT_3=3, S_FUNC_SET=4, S_DISP_OFF=5, S_CLR_DISP=6, S_ENTRY_MODE=7, S_DISP_ON=8, S_IDLE=9, S_LINE1_CMD=10, S_LINE1_WR=11, S_LINE2_CMD=12, S_LINE2_WR=13;
     reg [5:0] state; reg [19:0] cnt_delay; reg [19:0] wait_time; reg [4:0] char_idx;
     reg [7:0] line1_buf [0:15]; reg [7:0] line2_buf [0:15];
-    function [7:0] digit2ascii; input [3:0] d; begin if(d<10) digit2ascii=d+8'h30; else digit2ascii=8'h20; end endfunction
+    function [7:0] d2a; input [3:0] d; begin if(d<10) d2a=d+8'h30; else d2a=8'h20; end endfunction
 
+    // 1. 텍스트 업데이트 로직
     always @(posedge clk) begin
-        line1_buf[0]="O"; line1_buf[1]="D"; line1_buf[2]="O"; line1_buf[3]=":"; line1_buf[4]=" ";
-        line1_buf[5]=digit2ascii((odometer/10000)%10); line1_buf[6]=digit2ascii((odometer/1000)%10);
-        line1_buf[7]=digit2ascii((odometer/100)%10); line1_buf[8]=digit2ascii((odometer/10)%10);
-        line1_buf[9]=digit2ascii(odometer%10); line1_buf[10]=" "; line1_buf[11]="k"; line1_buf[12]="m";
-        line1_buf[13]=" "; line1_buf[14]=" "; line1_buf[15]=" ";
-
-        if(is_side_brake) begin
-            line2_buf[0]=" "; line2_buf[1]=" "; line2_buf[2]=" "; line2_buf[3]="S";
-            line2_buf[4]="I"; line2_buf[5]="D"; line2_buf[6]="E"; line2_buf[7]=" ";
-            line2_buf[8]="O"; line2_buf[9]="N"; line2_buf[10]="!"; line2_buf[11]=" ";
-            line2_buf[12]=" "; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
+        if (!engine_on) begin
+            line1_buf[0]=" "; line1_buf[1]="E"; line1_buf[2]="N"; line1_buf[3]="G"; line1_buf[4]="I"; line1_buf[5]="N"; line1_buf[6]="E"; line1_buf[7]=" ";
+            line1_buf[8]="O"; line1_buf[9]="F"; line1_buf[10]="F"; line1_buf[11]=" "; line1_buf[12]=" "; line1_buf[13]=" "; line1_buf[14]=" "; line1_buf[15]=" ";
+            
+            line2_buf[0]=" "; line2_buf[1]=" "; line2_buf[2]=" "; line2_buf[3]=" "; line2_buf[4]=" "; line2_buf[5]=" "; line2_buf[6]=" "; line2_buf[7]=" ";
+            line2_buf[8]=" "; line2_buf[9]=" "; line2_buf[10]=" "; line2_buf[11]=" "; line2_buf[12]=" "; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
         end else begin
-            line2_buf[0]=" "; line2_buf[1]="F"; line2_buf[2]="U"; line2_buf[3]="E";
-            line2_buf[4]="L"; line2_buf[5]=":"; line2_buf[6]=" "; 
-            if(fuel>=100) line2_buf[7]="1"; else line2_buf[7]=" ";
-            line2_buf[8]=digit2ascii((fuel/10)%10); line2_buf[9]=digit2ascii(fuel%10);
-            line2_buf[10]=" "; line2_buf[11]="%"; line2_buf[12]=" "; 
-            if(fuel<15) begin line2_buf[13]="!"; line2_buf[14]="!"; end else begin line2_buf[13]=" "; line2_buf[14]=" "; end
-            line2_buf[15]=" ";
+            line1_buf[0]="O"; line1_buf[1]="D"; line1_buf[2]="O"; line1_buf[3]=":"; line1_buf[4]=" ";
+            line1_buf[5]=d2a((odometer/10000)%10); line1_buf[6]=d2a((odometer/1000)%10); line1_buf[7]=d2a((odometer/100)%10);
+            line1_buf[8]=d2a((odometer/10)%10); line1_buf[9]=d2a(odometer%10); line1_buf[10]="k"; line1_buf[11]="m"; 
+            line1_buf[12]=" "; line1_buf[13]=" "; line1_buf[14]=" "; line1_buf[15]=" ";
+
+            if (is_side_brake) begin
+                line2_buf[0]=" "; line2_buf[1]="S"; line2_buf[2]="I"; line2_buf[3]="D"; line2_buf[4]="E"; line2_buf[5]=" ";
+                line2_buf[6]="B"; line2_buf[7]="R"; line2_buf[8]="K"; line2_buf[9]=" "; line2_buf[10]="O"; line2_buf[11]="N";
+                line2_buf[12]="!"; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
+            end else begin
+                line2_buf[0]="F"; line2_buf[1]="U"; line2_buf[2]="E"; line2_buf[3]="L"; line2_buf[4]=":"; line2_buf[5]=" "; 
+                if (fuel >= 100) line2_buf[7]="1"; else line2_buf[7]=" ";
+                line2_buf[8]=d2a((fuel/10)%10); line2_buf[9]=d2a(fuel%10);
+                line2_buf[10]=" "; line2_buf[11]="%"; line2_buf[12]=" "; 
+                if (fuel < 15) begin line2_buf[13]="!"; line2_buf[14]="!"; end 
+                else begin line2_buf[13]=" "; line2_buf[14]=" "; end
+                line2_buf[15]=" ";
+            end
         end
     end
 
+    // 2. LCD 제어 FSM
     always @(posedge clk or posedge rst) begin
-        if(rst) begin state<=S_DELAY_POW; cnt_delay<=0; char_idx<=0; lcd_e<=0; lcd_rs<=0; lcd_rw<=0; lcd_data<=0; wait_time<=2_500_000; end
+        if (rst) begin state<=S_DELAY_POW; cnt_delay<=0; char_idx<=0; lcd_e<=0; lcd_rs<=0; lcd_rw<=0; lcd_data<=0; wait_time<=2_500_000; end
         else begin
-            if(cnt_delay<wait_time) begin
-                cnt_delay<=cnt_delay+1; if(state!=S_DELAY_POW && cnt_delay==5000) lcd_e<=1; else if(cnt_delay==15000) lcd_e<=0;
+            if (cnt_delay < wait_time) begin
+                cnt_delay <= cnt_delay + 1;
+                if (state!=S_DELAY_POW && cnt_delay==5000) lcd_e<=1; else if(cnt_delay==15000) lcd_e<=0;
             end else begin
                 cnt_delay<=0;
-                case(state)
+                case (state)
                     S_DELAY_POW: begin state<=S_INIT_1; wait_time<=250_000; end
                     S_INIT_1: begin lcd_rs<=0; lcd_data<=8'h30; state<=S_INIT_2; wait_time<=10_000; end
                     S_INIT_2: begin lcd_rs<=0; lcd_data<=8'h30; state<=S_INIT_3; wait_time<=5_000; end
