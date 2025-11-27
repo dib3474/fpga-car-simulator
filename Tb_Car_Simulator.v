@@ -114,6 +114,17 @@ module Tb_Car_Simulator;
         else $display("[Time: %0t] ESS Deactivated", $time);
     end
 
+    // --- LCD Monitoring ---
+    always @(posedge uut.LCD_E) begin
+        if (uut.LCD_E) begin
+            if (uut.LCD_RS == 1) begin // Data Write
+                $display("[Time: %0t] LCD Write Data: '%c' (Hex: %h)", $time, uut.LCD_DATA, uut.LCD_DATA);
+            end else begin // Command Write
+                $display("[Time: %0t] LCD Write Command: %h", $time, uut.LCD_DATA);
+            end
+        end
+    end
+
     // --- Test Sequence ---
     initial begin
         // 1. 초기화

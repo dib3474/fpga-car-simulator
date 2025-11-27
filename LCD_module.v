@@ -50,10 +50,10 @@ module LCD_Module (
                     S_ENTRY_MODE: begin lcd_rs<=0; lcd_data<=8'h06; state<=S_DISP_ON; wait_time<=5_000; end
                     S_DISP_ON: begin lcd_rs<=0; lcd_data<=8'h0C; state<=S_IDLE; wait_time<=50_000; end
                     S_IDLE: begin state<=S_LINE1_CMD; wait_time<=50_000; end
-                    S_LINE1_CMD: begin lcd_rs<=0; lcd_data<=8'h80; char_idx<=0; state<=S_LINE1_WR; wait_time<=2_500; end
-                    S_LINE1_WR: begin lcd_rs<=1; lcd_data<=line1_buf[char_idx]; if(char_idx<15) begin char_idx<=char_idx+1; state<=S_LINE1_WR; end else state<=S_LINE2_CMD; wait_time<=2_500; end
-                    S_LINE2_CMD: begin lcd_rs<=0; lcd_data<=8'hC0; char_idx<=0; state<=S_LINE2_WR; wait_time<=2_500; end
-                    S_LINE2_WR: begin lcd_rs<=1; lcd_data<=line2_buf[char_idx]; if(char_idx<15) begin char_idx<=char_idx+1; state<=S_LINE2_WR; end else state<=S_IDLE; wait_time<=2_500; end
+                    S_LINE1_CMD: begin lcd_rs<=0; lcd_data<=8'h80; char_idx<=0; state<=S_LINE1_WR; wait_time<=20_000; end
+                    S_LINE1_WR: begin lcd_rs<=1; lcd_data<=line1_buf[char_idx]; if(char_idx<15) begin char_idx<=char_idx+1; state<=S_LINE1_WR; end else state<=S_LINE2_CMD; wait_time<=20_000; end
+                    S_LINE2_CMD: begin lcd_rs<=0; lcd_data<=8'hC0; char_idx<=0; state<=S_LINE2_WR; wait_time<=20_000; end
+                    S_LINE2_WR: begin lcd_rs<=1; lcd_data<=line2_buf[char_idx]; if(char_idx<15) begin char_idx<=char_idx+1; state<=S_LINE2_WR; end else state<=S_IDLE; wait_time<=20_000; end
                 endcase
             end
         end
