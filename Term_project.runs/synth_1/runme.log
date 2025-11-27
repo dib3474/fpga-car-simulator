@@ -1,0 +1,367 @@
+
+*** Running vivado
+    with args -log Car_Simulator_Top.vds -m64 -product Vivado -mode batch -messageDb vivado.pb -notrace -source Car_Simulator_Top.tcl
+
+
+
+****** Vivado v2020.1 (64-bit)
+  **** SW Build 2902540 on Wed May 27 19:54:49 MDT 2020
+  **** IP Build 2902112 on Wed May 27 22:43:36 MDT 2020
+    ** Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
+
+source Car_Simulator_Top.tcl -notrace
+Command: synth_design -top Car_Simulator_Top -part xc7s75fgga484-1
+Starting synth_design
+Attempting to get a license for feature 'Synthesis' and/or device 'xc7s75'
+INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xc7s75'
+INFO: [Device 21-403] Loading part xc7s75fgga484-1
+INFO: [Synth 8-7079] Multithreading enabled for synth_design using a maximum of 2 processes.
+INFO: [Synth 8-7078] Launching helper process for spawning children vivado processes
+INFO: [Synth 8-7075] Helper process launched with PID 19120
+---------------------------------------------------------------------------------
+Starting RTL Elaboration : Time (s): cpu = 00:00:02 ; elapsed = 00:00:03 . Memory (MB): peak = 1024.668 ; gain = 0.000
+---------------------------------------------------------------------------------
+INFO: [Synth 8-6157] synthesizing module 'Car_Simulator_Top' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Top_module.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Clock_Gen' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Clock_Gen.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Clock_Gen' (1#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Clock_Gen.v:1]
+INFO: [Synth 8-6157] synthesizing module 'SPI_ADC_Controller' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/SPI_ADC_Controller.v:1]
+INFO: [Synth 8-155] case statement is not full and has no default [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/SPI_ADC_Controller.v:35]
+INFO: [Synth 8-6155] done synthesizing module 'SPI_ADC_Controller' (2#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/SPI_ADC_Controller.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Vehicle_Logic' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Vehicle_Logic.v:1]
+	Parameter IDLE_RPM bound to: 800 - type: integer 
+INFO: [Synth 8-6155] done synthesizing module 'Vehicle_Logic' (3#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Vehicle_Logic.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Turn_Signal_Logic' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Turn_signal_logic.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Turn_Signal_Logic' (4#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Turn_signal_logic.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Light_Controller' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Light_Controller.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Light_Controller' (5#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Light_Controller.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Display_Unit' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Display_unit.v:1]
+INFO: [Synth 8-226] default block is never used [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Display_unit.v:59]
+INFO: [Synth 8-6155] done synthesizing module 'Display_Unit' (6#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Display_unit.v:1]
+INFO: [Synth 8-6157] synthesizing module 'LCD_Module' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/LCD_module.v:1]
+	Parameter S_DELAY_POW bound to: 6'b000000 
+	Parameter S_INIT_1 bound to: 6'b000001 
+	Parameter S_INIT_2 bound to: 6'b000010 
+	Parameter S_INIT_3 bound to: 6'b000011 
+	Parameter S_FUNC_SET bound to: 6'b000100 
+	Parameter S_DISP_OFF bound to: 6'b000101 
+	Parameter S_CLR_DISP bound to: 6'b000110 
+	Parameter S_ENTRY_MODE bound to: 6'b000111 
+	Parameter S_DISP_ON bound to: 6'b001000 
+	Parameter S_IDLE bound to: 6'b001001 
+	Parameter S_LINE1_CMD bound to: 6'b001010 
+	Parameter S_LINE1_WR bound to: 6'b001011 
+	Parameter S_LINE2_CMD bound to: 6'b001100 
+	Parameter S_LINE2_WR bound to: 6'b001101 
+INFO: [Synth 8-155] case statement is not full and has no default [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/LCD_module.v:42]
+INFO: [Synth 8-6155] done synthesizing module 'LCD_Module' (7#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/LCD_module.v:1]
+INFO: [Synth 8-6157] synthesizing module 'Sound_Unit' [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Sound_unit.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Sound_Unit' (8#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Sound_unit.v:1]
+INFO: [Synth 8-6155] done synthesizing module 'Car_Simulator_Top' (9#1) [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Top_module.v:1]
+---------------------------------------------------------------------------------
+Finished RTL Elaboration : Time (s): cpu = 00:00:03 ; elapsed = 00:00:04 . Memory (MB): peak = 1024.668 ; gain = 0.000
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:04 ; elapsed = 00:00:05 . Memory (MB): peak = 1024.668 ; gain = 0.000
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 1 : Time (s): cpu = 00:00:04 ; elapsed = 00:00:05 . Memory (MB): peak = 1024.668 ; gain = 0.000
+---------------------------------------------------------------------------------
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.011 . Memory (MB): peak = 1024.668 ; gain = 0.000
+INFO: [Project 1-570] Preparing netlist for logic optimization
+
+Processing XDC Constraints
+Initializing timing engine
+Parsing XDC File [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Term_project.srcs/constrs_1/new/car.xdc]
+Finished Parsing XDC File [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Term_project.srcs/constrs_1/new/car.xdc]
+INFO: [Project 1-236] Implementation specific constraints were found while reading constraint file [C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Term_project.srcs/constrs_1/new/car.xdc]. These constraints will be ignored for synthesis but will be used in implementation. Impacted constraints are listed in the file [.Xil/Car_Simulator_Top_propImpl.xdc].
+Resolution: To avoid this warning, move constraints listed in [.Xil/Car_Simulator_Top_propImpl.xdc] to another XDC file and exclude this new file from synthesis with the used_in_synthesis property (File Properties dialog in GUI) and re-run elaboration/synthesis.
+Completed Processing XDC Constraints
+
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00 . Memory (MB): peak = 1042.336 ; gain = 0.000
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+Constraint Validation Runtime : Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.004 . Memory (MB): peak = 1042.336 ; gain = 0.000
+---------------------------------------------------------------------------------
+Finished Constraint Validation : Time (s): cpu = 00:00:08 ; elapsed = 00:00:09 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Loading Part and Timing Information
+---------------------------------------------------------------------------------
+Loading part: xc7s75fgga484-1
+---------------------------------------------------------------------------------
+Finished Loading Part and Timing Information : Time (s): cpu = 00:00:08 ; elapsed = 00:00:09 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Applying 'set_property' XDC Constraints
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished applying 'set_property' XDC Constraints : Time (s): cpu = 00:00:08 ; elapsed = 00:00:09 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+INFO: [Synth 8-802] inferred FSM for state register 'state_reg' in module 'SPI_ADC_Controller'
+INFO: [Synth 8-802] inferred FSM for state register 'state_reg' in module 'LCD_Module'
+---------------------------------------------------------------------------------------------------
+                   State |                     New Encoding |                Previous Encoding 
+---------------------------------------------------------------------------------------------------
+                  iSTATE |                              000 |                              000
+                 iSTATE2 |                              001 |                              001
+                 iSTATE3 |                              010 |                              010
+                 iSTATE0 |                              011 |                              011
+                 iSTATE1 |                              100 |                              100
+                 iSTATE4 |                              101 |                              101
+---------------------------------------------------------------------------------------------------
+INFO: [Synth 8-3354] encoded FSM with state register 'state_reg' using encoding 'sequential' in module 'SPI_ADC_Controller'
+---------------------------------------------------------------------------------------------------
+                   State |                     New Encoding |                Previous Encoding 
+---------------------------------------------------------------------------------------------------
+             S_DELAY_POW |                   00000000000001 |                           000000
+                S_INIT_1 |                   00000000000010 |                           000001
+                S_INIT_2 |                   00000000000100 |                           000010
+                S_INIT_3 |                   00000000001000 |                           000011
+              S_FUNC_SET |                   00000000010000 |                           000100
+              S_DISP_OFF |                   00000000100000 |                           000101
+              S_CLR_DISP |                   00000001000000 |                           000110
+            S_ENTRY_MODE |                   00000010000000 |                           000111
+               S_DISP_ON |                   00000100000000 |                           001000
+                  S_IDLE |                   00001000000000 |                           001001
+             S_LINE1_CMD |                   00010000000000 |                           001010
+              S_LINE1_WR |                   00100000000000 |                           001011
+             S_LINE2_CMD |                   01000000000000 |                           001100
+              S_LINE2_WR |                   10000000000000 |                           001101
+---------------------------------------------------------------------------------------------------
+INFO: [Synth 8-3354] encoded FSM with state register 'state_reg' using encoding 'one-hot' in module 'LCD_Module'
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 2 : Time (s): cpu = 00:00:09 ; elapsed = 00:00:10 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start RTL Component Statistics 
+---------------------------------------------------------------------------------
+Detailed RTL Component Info : 
++---Adders : 
+	   2 Input   20 Bit       Adders := 2     
+	   2 Input   14 Bit       Adders := 5     
+	   2 Input    8 Bit       Adders := 8     
+	   2 Input    5 Bit       Adders := 2     
+	   2 Input    4 Bit       Adders := 1     
+	   2 Input    3 Bit       Adders := 1     
++---XORs : 
+	   4 Input      1 Bit         XORs := 1     
++---Registers : 
+	               20 Bit    Registers := 2     
+	               16 Bit    Registers := 2     
+	                8 Bit    Registers := 30    
+	                5 Bit    Registers := 3     
+	                4 Bit    Registers := 1     
+	                3 Bit    Registers := 2     
+	                1 Bit    Registers := 16    
++---Muxes : 
+	  14 Input   20 Bit        Muxes := 1     
+	   2 Input   20 Bit        Muxes := 1     
+	   2 Input   14 Bit        Muxes := 4     
+	   4 Input   14 Bit        Muxes := 1     
+	  14 Input   14 Bit        Muxes := 1     
+	   2 Input    8 Bit        Muxes := 12    
+	   5 Input    8 Bit        Muxes := 2     
+	  14 Input    8 Bit        Muxes := 1     
+	  17 Input    7 Bit        Muxes := 1     
+	   6 Input    7 Bit        Muxes := 1     
+	   2 Input    7 Bit        Muxes := 2     
+	   2 Input    6 Bit        Muxes := 2     
+	   2 Input    5 Bit        Muxes := 1     
+	  14 Input    5 Bit        Muxes := 1     
+	   4 Input    4 Bit        Muxes := 1     
+	   5 Input    3 Bit        Muxes := 1     
+	   6 Input    3 Bit        Muxes := 1     
+	   2 Input    1 Bit        Muxes := 20    
+	   4 Input    1 Bit        Muxes := 2     
+	   5 Input    1 Bit        Muxes := 9     
+	  14 Input    1 Bit        Muxes := 4     
+	   3 Input    1 Bit        Muxes := 1     
+---------------------------------------------------------------------------------
+Finished RTL Component Statistics 
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Part Resource Summary
+---------------------------------------------------------------------------------
+Part Resources:
+DSPs: 140 (col length:80)
+BRAMs: 180 (col length: RAMB18 80 RAMB36 40)
+---------------------------------------------------------------------------------
+Finished Part Resource Summary
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Cross Boundary and Area Optimization
+---------------------------------------------------------------------------------
+DSP Report: Generating DSP u_logic/rpm0, operation Mode is: (C:0x5dc)+A*(B:0x50).
+DSP Report: operator u_logic/rpm0 is absorbed into DSP u_logic/rpm0.
+DSP Report: operator u_logic/rpm1 is absorbed into DSP u_logic/rpm0.
+DSP Report: Generating DSP u_logic/rpm0, operation Mode is: (C:0x5dc)+A*(B:0x3c).
+DSP Report: operator u_logic/rpm0 is absorbed into DSP u_logic/rpm0.
+DSP Report: operator u_logic/rpm1 is absorbed into DSP u_logic/rpm0.
+DSP Report: Generating DSP u_logic/rpm0, operation Mode is: (C:0x640)+A*(B:0x28).
+DSP Report: operator u_logic/rpm0 is absorbed into DSP u_logic/rpm0.
+DSP Report: operator u_logic/rpm1 is absorbed into DSP u_logic/rpm0.
+DSP Report: Generating DSP u_logic/rpm0, operation Mode is: (C:0x6a4)+A*(B:0x1e).
+DSP Report: operator u_logic/rpm0 is absorbed into DSP u_logic/rpm0.
+DSP Report: operator u_logic/rpm1 is absorbed into DSP u_logic/rpm0.
+DSP Report: Generating DSP u_logic/rpm0, operation Mode is: (C:0x708)+A*(B:0x14).
+DSP Report: operator u_logic/rpm0 is absorbed into DSP u_logic/rpm0.
+DSP Report: operator u_logic/rpm1 is absorbed into DSP u_logic/rpm0.
+---------------------------------------------------------------------------------
+Finished Cross Boundary and Area Optimization : Time (s): cpu = 00:00:14 ; elapsed = 00:00:15 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start ROM, RAM, DSP and Shift Register Reporting
+---------------------------------------------------------------------------------
+
+DSP: Preliminary Mapping	Report (see note below)
++--------------+----------------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+|Module Name   | DSP Mapping          | A Size | B Size | C Size | D Size | P Size | AREG | BREG | CREG | DREG | ADREG | MREG | PREG | 
++--------------+----------------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+|Vehicle_Logic | (C:0x5dc)+A*(B:0x50) | 14     | 7      | 11     | -      | 14     | 0    | 0    | 0    | -    | -     | 0    | 0    | 
+|Vehicle_Logic | (C:0x5dc)+A*(B:0x3c) | 14     | 6      | 11     | -      | 14     | 0    | 0    | 0    | -    | -     | 0    | 0    | 
+|Vehicle_Logic | (C:0x640)+A*(B:0x28) | 14     | 6      | 11     | -      | 14     | 0    | 0    | 0    | -    | -     | 0    | 0    | 
+|Vehicle_Logic | (C:0x6a4)+A*(B:0x1e) | 14     | 5      | 11     | -      | 14     | 0    | 0    | 0    | -    | -     | 0    | 0    | 
+|Vehicle_Logic | (C:0x708)+A*(B:0x14) | 14     | 5      | 11     | -      | 14     | 0    | 0    | 0    | -    | -     | 0    | 0    | 
++--------------+----------------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+
+Note: The table above is a preliminary report that shows the DSPs inferred at the current stage of the synthesis flow. Some DSP may be reimplemented as non DSP primitives later in the synthesis flow. Multiple instantiated DSPs are reported only once.
+---------------------------------------------------------------------------------
+Finished ROM, RAM, DSP and Shift Register Reporting
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Applying XDC Timing Constraints
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Applying XDC Timing Constraints : Time (s): cpu = 00:00:19 ; elapsed = 00:00:21 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Timing Optimization
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Timing Optimization : Time (s): cpu = 00:00:19 ; elapsed = 00:00:21 . Memory (MB): peak = 1042.336 ; gain = 17.668
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Technology Mapping
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Technology Mapping : Time (s): cpu = 00:00:20 ; elapsed = 00:00:21 . Memory (MB): peak = 1051.695 ; gain = 27.027
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished IO Insertion : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Instances
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Instances : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Rebuilding User Hierarchy
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Rebuilding User Hierarchy : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Ports
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Ports : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Nets
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Nets : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start ROM, RAM, DSP and Shift Register Reporting
+---------------------------------------------------------------------------------
+
+Static Shift Register Report:
++------------------+------------------------+--------+-------+--------------+--------------------+-------------------+--------+---------+
+|Module Name       | RTL Name               | Length | Width | Reset Signal | Pull out first Reg | Pull out last Reg | SRL16E | SRLC32E | 
++------------------+------------------------+--------+-------+--------------+--------------------+-------------------+--------+---------+
+|Car_Simulator_Top | u_adc/shift_reg_reg[4] | 5      | 1     | NO           | YES                | YES               | 1      | 0       | 
++------------------+------------------------+--------+-------+--------------+--------------------+-------------------+--------+---------+
+
+---------------------------------------------------------------------------------
+Finished ROM, RAM, DSP and Shift Register Reporting
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Writing Synthesis Report
+---------------------------------------------------------------------------------
+
+Report BlackBoxes: 
++-+--------------+----------+
+| |BlackBox name |Instances |
++-+--------------+----------+
++-+--------------+----------+
+
+Report Cell Usage: 
++------+-------+------+
+|      |Cell   |Count |
++------+-------+------+
+|1     |BUFG   |     1|
+|2     |CARRY4 |    62|
+|3     |LUT1   |    22|
+|4     |LUT2   |   105|
+|5     |LUT3   |    91|
+|6     |LUT4   |    68|
+|7     |LUT5   |    86|
+|8     |LUT6   |   109|
+|9     |SRL16E |     1|
+|10    |FDCE   |   222|
+|11    |FDPE   |    25|
+|12    |FDRE   |    57|
+|13    |FDSE   |     8|
+|14    |IBUF   |    17|
+|15    |OBUF   |    59|
++------+-------+------+
+---------------------------------------------------------------------------------
+Finished Writing Synthesis Report : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+---------------------------------------------------------------------------------
+Synthesis finished with 0 errors, 0 critical warnings and 0 warnings.
+Synthesis Optimization Runtime : Time (s): cpu = 00:00:17 ; elapsed = 00:00:22 . Memory (MB): peak = 1057.504 ; gain = 15.168
+Synthesis Optimization Complete : Time (s): cpu = 00:00:22 ; elapsed = 00:00:24 . Memory (MB): peak = 1057.504 ; gain = 32.836
+INFO: [Project 1-571] Translating synthesized netlist
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.008 . Memory (MB): peak = 1068.582 ; gain = 0.000
+INFO: [Netlist 29-17] Analyzing 62 Unisim elements for replacement
+INFO: [Netlist 29-28] Unisim Transformation completed in 0 CPU seconds
+INFO: [Project 1-570] Preparing netlist for logic optimization
+INFO: [Opt 31-138] Pushed 0 inverter(s) to 0 load pin(s).
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.001 . Memory (MB): peak = 1068.582 ; gain = 0.000
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+INFO: [Common 17-83] Releasing license: Synthesis
+40 Infos, 0 Warnings, 0 Critical Warnings and 0 Errors encountered.
+synth_design completed successfully
+synth_design: Time (s): cpu = 00:00:26 ; elapsed = 00:00:29 . Memory (MB): peak = 1068.582 ; gain = 43.914
+INFO: [Common 17-1381] The checkpoint 'C:/Users/user/OneDrive/  2 2/logic_circuit/Term_project/Term_project.runs/synth_1/Car_Simulator_Top.dcp' has been generated.
+INFO: [runtcl-4] Executing : report_utilization -file Car_Simulator_Top_utilization_synth.rpt -pb Car_Simulator_Top_utilization_synth.pb
+INFO: [Common 17-206] Exiting Vivado at Mon Nov 24 22:04:25 2025...
