@@ -1,38 +1,53 @@
 module Car_Simulator_Top (
     input CLK,
-    // Å°ÆÐµå
+    // í‚¤íŒ¨ë“œ
     input KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6,
     input KEY_7, KEY_8, KEY_9, KEY_STAR, KEY_0, KEY_SHARP,
-    // ½ºÀ§Ä¡ & ADC
+    // ï¿½ï¿½ï¿½ï¿½Ä¡ & ADC
     input [7:0] DIP_SW,
     output SPI_SCK, SPI_AD, SPI_DIN, input SPI_DOUT,
-    // Ãâ·Â
+    // ï¿½ï¿½ï¿½
     output [7:0] SEG_DATA, SEG_COM,
     output PIEZO,
     output [7:0] LED,
     output LCD_RS, LCD_RW, LCD_E, output [7:0] LCD_DATA,
-    output [7:0] SEG_1_DATA, // 1-Digit µ¥ÀÌÅÍ
-    // 1-Digit COMÀº »èÁ¦µÊ (Display_Unit ¼öÁ¤ ¹Ý¿µ)
+    output [7:0] SEG_1_DATA, // 1-Digit ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // 1-Digit COMï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Display_Unit ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½)
     
     output [3:0] FC_RED, output [3:0] FC_GREEN, output [3:0] FC_BLUE
 );
 
-    // ... (³»ºÎ ¿ÍÀÌ¾î ¼±¾ð µ¿ÀÏ) ...
+    // ... (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¾ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ...
     wire tick_1s, tick_spd, tick_scn, tick_snd;
+    
+
+
     wire [7:0] spd_w, fuel_w, temp_w, adc_accel_w, adc_cds_w;
     wire [13:0] rpm_w;
     wire [31:0] odo_w;
     wire ess_trig, led_l, led_r;
-    reg [3:0] gear_reg;
+    reg [3:0] gear_reg = 4'd3;
 
-    // ¾ÈÀü ¸®¼Â
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     wire global_safe_rst;
     assign global_safe_rst = (KEY_8 && (spd_w == 0) && (gear_reg == 4'd3) && KEY_STAR && DIP_SW[7]); 
 
-    // --- ¸ðµâ ¿¬°á ---
+    // --- ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ---
     Clock_Gen u_clk (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .tick_scan(tick_scn), .tick_sound(tick_snd));
     SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_w), .adc_cds(adc_cds_w));
     
+
+
+    // Warning Light Logic (ESS Timer)
+    wire ess_active_wire;
+    Warning_Light_Logic u_warn (
+        .clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s),
+        .sw_hazard(DIP_SW[2]), .ess_trigger(ess_trig), 
+        .is_accel_pressed(adc_accel_w > 10),
+        .blink_out(), 
+        .ess_active_out(ess_active_wire)
+    );
+
     always @(posedge CLK or posedge global_safe_rst) begin
         if (global_safe_rst) gear_reg <= 4'd3;
         else begin
@@ -42,13 +57,13 @@ module Car_Simulator_Top (
     end
 
     Vehicle_Logic u_logic (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .current_gear(gear_reg), .adc_accel(adc_accel_w), .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), .ess_trigger(ess_trig));
-    Turn_Signal_Logic u_sig (.clk(CLK), .rst(global_safe_rst), .sw_left(DIP_SW[0]), .sw_right(DIP_SW[1]), .sw_hazard(DIP_SW[2]), .ess_active(ess_trig), .led_left(led_l), .led_right(led_r));
+    Turn_Signal_Logic u_sig (.clk(CLK), .rst(global_safe_rst), .sw_left(DIP_SW[0]), .sw_right(DIP_SW[1]), .sw_hazard(DIP_SW[2]), .ess_active(ess_active_wire), .led_left(led_l), .led_right(led_r));
     Light_Controller u_light (.clk(CLK), .rst(global_safe_rst), .sw_headlight(DIP_SW[3]), .sw_high_beam(DIP_SW[4]), .cds_val(adc_cds_w), .is_brake(KEY_7 | KEY_STAR), .turn_left(led_l), .turn_right(led_r), .fc_red(FC_RED), .fc_green(FC_GREEN), .fc_blue(FC_BLUE), .led_port(LED));
 
-    // ¡Ú Display Unit ¿¬°á ¼öÁ¤ (rst Æ÷Æ® Ãß°¡)
+    // ï¿½ï¿½ Display Unit ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (rst ï¿½ï¿½Æ® ï¿½ß°ï¿½)
     Display_Unit u_disp (
         .clk(CLK), 
-        .rst(global_safe_rst), // ¸®¼Â ¿¬°á!
+        .rst(global_safe_rst), // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½!
         .tick_scan(tick_scn), .obd_mode_sw(DIP_SW[7]), 
         .rpm(rpm_w), .speed(spd_w), .fuel(fuel_w), .temp(temp_w), .gear_char(gear_reg), 
         .seg_data(SEG_DATA), .seg_com(SEG_COM), .seg_1_data(SEG_1_DATA)

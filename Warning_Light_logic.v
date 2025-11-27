@@ -1,42 +1,45 @@
 module Warning_Light_Logic (
     input clk,
     input rst,
-    input tick_1sec,         // ½Ã°£ Ä«¿îÆ®¿ë
+    input tick_1sec,         // ï¿½Ã°ï¿½ Ä«ï¿½ï¿½Æ®ï¿½ï¿½
     
-    input sw_hazard,         // DIP ½ºÀ§Ä¡ ÀÔ·Â (SW3)
-    input ess_trigger,       // Vehicle_Logic¿¡¼­ ¿Â ±ÞÁ¦µ¿ ½ÅÈ£
-    input is_accel_pressed,  // ¾Ç¼¿À» ¹â¾Ò´ÂÁö ¿©ºÎ (ÀçÃâ¹ß °¨Áö)
+    input sw_hazard,         // DIP ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½Ô·ï¿½ (SW3)
+    input ess_trigger,       // Vehicle_Logicï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£
+    input is_accel_pressed,  // ï¿½Ç¼ï¿½ï¿½ï¿½ ï¿½ï¿½Ò´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     
-    output reg blink_out     // ÃÖÁ¾ ºñ»óµî ±ôºýÀÓ ½ÅÈ£
+    output reg blink_out,     // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£
+    output wire ess_active_out // ESS Active Output
 );
 
-    // --- 1. ESS À¯Áö Å¸ÀÌ¸Ó ·ÎÁ÷ ---
-    reg [2:0] ess_timer;     // 3ÃÊ Ä«¿îÅÍ
-    reg ess_active;          // ESS È°¼ºÈ­ »óÅÂ ÇÃ·¡±×
+    // --- 1. ESS ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ---
+    reg [2:0] ess_timer;     // 3ï¿½ï¿½ Ä«ï¿½ï¿½ï¿½ï¿½
+    reg ess_active;          // ESS È°ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½
+
+    assign ess_active_out = ess_active;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             ess_active <= 0;
             ess_timer <= 0;
         end else begin
-            // [Á¶°Ç A] ±ÞÁ¦µ¿ ½ÅÈ£°¡ µé¾î¿À¸é ESS ¸ðµå ½ÃÀÛ
+            // [ï¿½ï¿½ï¿½ï¿½ A] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ESS ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             if (ess_trigger) begin
                 ess_active <= 1;
-                ess_timer <= 3; // 3ÃÊ À¯Áö ¼³Á¤
+                ess_timer <= 3; // 3ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             end
             
-            // [Á¶°Ç B] ESS ²ô´Â Á¶°Ç
+            // [ï¿½ï¿½ï¿½ï¿½ B] ESS ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             else if (ess_active) begin
-                // 1. ¾Ç¼¿À» ¹âÀ¸¸é Áï½Ã ²û (ÀçÃâ¹ß)
+                // 1. ï¿½Ç¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½)
                 if (is_accel_pressed) begin
                     ess_active <= 0;
                     ess_timer <= 0;
                 end
-                // 2. Å¸ÀÌ¸Ó°¡ 0ÀÌ µÇ¸é ²û
+                // 2. Å¸ï¿½Ì¸Ó°ï¿½ 0ï¿½ï¿½ ï¿½Ç¸ï¿½ ï¿½ï¿½
                 else if (ess_timer == 0) begin
                     ess_active <= 0;
                 end
-                // 3. Å¸ÀÌ¸Ó °¨¼Ò (1ÃÊ¸¶´Ù)
+                // 3. Å¸ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ (1ï¿½Ê¸ï¿½ï¿½ï¿½)
                 else if (tick_1sec) begin
                     ess_timer <= ess_timer - 1;
                 end
@@ -44,24 +47,24 @@ module Warning_Light_Logic (
         end
     end
 
-    // --- 2. ±ôºýÀÓ ÁÖ±â »ý¼º (0.5ÃÊ °£°Ý) ---
+    // --- 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö±ï¿½ ï¿½ï¿½ï¿½ï¿½ (0.5ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ---
     reg [24:0] blink_cnt;
     wire blink_pulse;
-    // 50MHz Å¬·° ±âÁØ ¾à 0.5ÃÊ (25,000,000)
+    // 50MHz Å¬ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 0.5ï¿½ï¿½ (25,000,000)
     always @(posedge clk or posedge rst) begin
         if (rst) blink_cnt <= 0;
         else if (blink_cnt >= 25_000_000) blink_cnt <= 0;
         else blink_cnt <= blink_cnt + 1;
     end
-    assign blink_pulse = (blink_cnt < 12_500_000); // 0.5ÃÊ ON, 0.5ÃÊ OFF
+    assign blink_pulse = (blink_cnt < 12_500_000); // 0.5ï¿½ï¿½ ON, 0.5ï¿½ï¿½ OFF
 
-    // --- 3. ÃÖÁ¾ Ãâ·Â °áÁ¤ (OR ·ÎÁ÷) ---
+    // --- 3. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (OR ï¿½ï¿½ï¿½ï¿½) ---
     always @(*) begin
-        // DIP ½ºÀ§Ä¡(SW3)°¡ ÄÑÁ® ÀÖ°Å³ª(OR) ESS°¡ È°¼ºÈ­ »óÅÂ¸é ±ôºýÀÓ
+        // DIP ï¿½ï¿½ï¿½ï¿½Ä¡(SW3)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö°Å³ï¿½(OR) ESSï¿½ï¿½ È°ï¿½ï¿½È­ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         if (sw_hazard || ess_active) begin
             blink_out = blink_pulse;
         end else begin
-            blink_out = 0; // µÑ ´Ù ¾Æ´Ï¸é ²¨Áü
+            blink_out = 0; // ï¿½ï¿½ ï¿½ï¿½ ï¿½Æ´Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½
         end
     end
 

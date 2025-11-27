@@ -2,23 +2,23 @@ module SPI_ADC_Controller (
     input clk, 
     input rst,
     
-    // SPI ¹°¸® ÇÉ
+    // SPI ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
     output reg spi_sck, 
     output reg spi_cs_n, 
     output reg spi_mosi, 
     input spi_miso,
     
-    // ¡Ú ¿©±â°¡ ÇÙ½É º¯°æÁ¡! (Ãâ·ÂÀÌ 2°³¿©¾ß ÇÔ)
-    output reg [7:0] adc_accel,  // ¾Ç¼¿ °ª
-    output reg [7:0] adc_cds     // Á¶µµ °ª
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½â°¡ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½! (ï¿½ï¿½ï¿½ï¿½ï¿½ 2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)
+    output reg [7:0] adc_accel = 0,  // ï¿½Ç¼ï¿½ ï¿½ï¿½
+    output reg [7:0] adc_cds = 0     // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
 );
 
-    reg [7:0] clk_div; 
-    reg [4:0] bit_cnt; 
-    reg [15:0] shift_reg; 
-    reg sck_toggled;
-    reg [2:0] ch_addr; 
-    reg [2:0] state; // FSM »óÅÂ
+    reg [7:0] clk_div = 0; 
+    reg [4:0] bit_cnt = 0; 
+    reg [15:0] shift_reg = 0; 
+    reg sck_toggled = 0;
+    reg [2:0] ch_addr = 0; 
+    reg [2:0] state = 0; // FSM ï¿½ï¿½ï¿½ï¿½
 
     // 1MHz SPI Clock
     always @(posedge clk or posedge rst) begin
@@ -26,26 +26,29 @@ module SPI_ADC_Controller (
         else begin if(clk_div>=24) begin clk_div<=0; sck_toggled<=~sck_toggled; end else clk_div<=clk_div+1; end
     end
 
-    // 2Ã¤³Î ¼øÂ÷ ÀÐ±â ·ÎÁ÷
+    // 2Ã¤ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ð±ï¿½ ï¿½ï¿½ï¿½ï¿½
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             spi_cs_n<=1; spi_sck<=0; spi_mosi<=0; bit_cnt<=0;
             adc_accel<=0; adc_cds<=0; state<=0; ch_addr<=0;
         end else if (clk_div==0) begin
             case(state)
-                0: begin ch_addr<=0; state<=1; end // CH0 ÁØºñ (¾Ç¼¿)
-                3: begin ch_addr<=1; state<=4; end // CH1 ÁØºñ (CDS)
+                0: begin ch_addr<=0; state<=1; end // CH0 ï¿½Øºï¿½ (ï¿½Ç¼ï¿½)
+                3: begin ch_addr<=1; state<=4; end // CH1 ï¿½Øºï¿½ (CDS)
                 
-                1, 4: begin // Åë½Å Áß
+                1, 4: begin // ï¿½ï¿½ï¿½ ï¿½ï¿½
                     if(spi_cs_n) begin spi_cs_n<=0; bit_cnt<=0; end 
                     else begin
                         if(sck_toggled) begin spi_sck<=1; shift_reg<={shift_reg[14:0],spi_miso}; end 
                         else begin 
                             spi_sck<=0; 
-                            // ÁÖ¼Ò ºñÆ® Àü¼Û (3,4,5¹øÂ° ºñÆ®)
-                            if(bit_cnt==2) spi_mosi<=0; 
-                            else if(bit_cnt==3) spi_mosi<=0; 
-                            else if(bit_cnt==4) spi_mosi<=ch_addr[0]; 
+                            // MCP3202 Protocol: Start(1), SGL(1), ODD/SIGN(CH), MSBF(1)
+                            if(bit_cnt==0) spi_mosi<=1;      // Start Bit
+                            else if(bit_cnt==1) spi_mosi<=1; // SGL/DIFF (Single Ended)
+                            else if(bit_cnt==2) spi_mosi<=ch_addr[0]; // ODD/SIGN (Channel)
+                            else if(bit_cnt==3) spi_mosi<=1; // MSBF (MSB First)
+                            else spi_mosi<=0;
+                            
                             bit_cnt<=bit_cnt+1; 
                         end
                         if(bit_cnt>16) begin 
@@ -55,8 +58,8 @@ module SPI_ADC_Controller (
                     end
                 end
                 
-                2: begin adc_accel<=shift_reg[11:4]; state<=3; end // ¾Ç¼¿ ÀúÀå
-                5: begin adc_cds<=shift_reg[11:4]; state<=0; end   // CDS ÀúÀå
+                2: begin adc_accel<=shift_reg[11:4]; state<=3; end // ï¿½Ç¼ï¿½ ï¿½ï¿½ï¿½ï¿½
+                5: begin adc_cds<=shift_reg[11:4]; state<=0; end   // CDS ï¿½ï¿½ï¿½ï¿½
             endcase
         end
     end

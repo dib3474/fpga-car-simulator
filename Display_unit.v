@@ -1,6 +1,6 @@
 module Display_Unit (
     input clk, 
-    input rst,              // ¡Ú ¸®¼Â Ãß°¡ (ÃÊ±âÈ­¿ë)
+    input rst,              // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ (ï¿½Ê±ï¿½È­ï¿½ï¿½)
     input tick_scan, 
     input obd_mode_sw,
     input [13:0] rpm, 
@@ -10,18 +10,18 @@ module Display_Unit (
     input [3:0] gear_char, 
     
     // 8-Digit 7-Segment
-    output reg [7:0] seg_data, 
-    output reg [7:0] seg_com,
+    output reg [7:0] seg_data = 0, 
+    output reg [7:0] seg_com = 0,
 
     // 1-Digit 7-Segment
-    output reg [7:0] seg_1_data 
+    output reg [7:0] seg_1_data = 0
 );
 
-    reg [15:0] left_val, right_val; 
-    reg [2:0] scan_idx; 
-    reg [3:0] hex_digit;
+    reg [15:0] left_val = 0, right_val = 0; 
+    reg [2:0] scan_idx = 0; 
+    reg [3:0] hex_digit = 0;
 
-    // --- 1. µ¥ÀÌÅÍ ¼±ÅÃ ---
+    // --- 1. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ---
     always @(*) begin
         if (obd_mode_sw) begin 
             left_val = {8'b0, fuel}; right_val = {8'b0, temp}; 
@@ -30,23 +30,23 @@ module Display_Unit (
         end
     end
 
-    // --- 2. ½ºÄµ Å¸ÀÌ¹Ö (¸®¼Â ½Ã 0¹øºÎÅÍ) ---
+    // --- 2. ï¿½ï¿½Äµ Å¸ï¿½Ì¹ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½) ---
     always @(posedge clk or posedge rst) begin
         if (rst) scan_idx <= 0;
         else if (tick_scan) scan_idx <= scan_idx + 1;
     end
 
-    // --- 3. 8-Digit µðÄÚµù (¡Ú Active High: 1ÀÌ ÄÑÁü) ---
+    // --- 3. 8-Digit ï¿½ï¿½ï¿½Úµï¿½ (ï¿½ï¿½ Active High: 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ---
     always @(*) begin
         if (rst) begin
-            seg_com = 8'hFF; // ¸®¼Â ½Ã COM ²û (Active Low¸é 1ÀÌ ²û)
-            seg_data = 8'h00; // ¸®¼Â ½Ã µ¥ÀÌÅÍ ²û (Active High¸é 0ÀÌ ²û)
+            seg_com = 8'hFF; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ COM ï¿½ï¿½ (Active Lowï¿½ï¿½ 1ï¿½ï¿½ ï¿½ï¿½)
+            seg_data = 8'h00; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ (Active Highï¿½ï¿½ 0ï¿½ï¿½ ï¿½ï¿½)
         end else begin
-            // COM Á¦¾î (º¸Åë COMÀº Active Low°¡ Ç¥ÁØ: 0ÀÏ ¶§ ¼±ÅÃµÊ)
+            // COM ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ COMï¿½ï¿½ Active Lowï¿½ï¿½ Ç¥ï¿½ï¿½: 0ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ãµï¿½)
             seg_com = 8'hFF; 
             seg_com[scan_idx] = 0; 
 
-            // ÀÚ¸´¼ö µ¥ÀÌÅÍ ¸ÅÇÎ
+            // ï¿½Ú¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             case (scan_idx)
                 0: hex_digit = right_val[3:0]; 1: hex_digit = right_val[7:4];
                 2: hex_digit = right_val[11:8]; 3: hex_digit = right_val[15:12];
@@ -54,17 +54,17 @@ module Display_Unit (
                 6: hex_digit = left_val[11:8]; 7: hex_digit = left_val[15:12];
             endcase
             
-            // ¡Ú µ¥ÀÌÅÍ ÆÐÅÏ (Active High: 1ÀÏ ¶§ ÄÑÁü)
-            // ¼ø¼­: dp, g, f, e, d, c, b, a
+            // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (Active High: 1ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+            // ï¿½ï¿½ï¿½ï¿½: dp, g, f, e, d, c, b, a
             case (hex_digit)
-                4'h0: seg_data = 8'b0011_1111; // 0 (g, dp ²¨Áü)
-                4'h1: seg_data = 8'b0000_0110; // 1 (b,c ÄÑÁü)
+                4'h0: seg_data = 8'b0011_1111; // 0 (g, dp ï¿½ï¿½ï¿½ï¿½)
+                4'h1: seg_data = 8'b0000_0110; // 1 (b,c ï¿½ï¿½ï¿½ï¿½)
                 4'h2: seg_data = 8'b0101_1011; // 2
                 4'h3: seg_data = 8'b0100_1111; // 3
                 4'h4: seg_data = 8'b0110_0110; // 4
                 4'h5: seg_data = 8'b0110_1101; // 5
                 4'h6: seg_data = 8'b0111_1101; // 6
-                4'h7: seg_data = 8'b0000_0111; // 7 (a,b,c ÄÑÁü)
+                4'h7: seg_data = 8'b0000_0111; // 7 (a,b,c ï¿½ï¿½ï¿½ï¿½)
                 4'h8: seg_data = 8'b0111_1111; // 8
                 4'h9: seg_data = 8'b0110_1111; // 9
                 4'hA: seg_data = 8'b0111_0111; // A
@@ -78,9 +78,9 @@ module Display_Unit (
         end
     end
 
-    // --- 4. 1-Digit ±â¾î Ç¥½Ã (¡Ú Active High: 1ÀÌ ÄÑÁü) ---
+    // --- 4. 1-Digit ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ (ï¿½ï¿½ Active High: 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ---
     always @(*) begin
-        if (rst) seg_1_data = 8'h00; // ¸®¼Â ½Ã ²û
+        if (rst) seg_1_data = 8'h00; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½
         else begin
             case (gear_char)
                 // P: a,b,e,f,g ON -> 0111_0011 (Active High)
@@ -99,7 +99,7 @@ module Display_Unit (
                 // 8'b 0101_1110
                 4'd12: seg_1_data = 8'b0101_1110; 
                 
-                // ±× ¿Ü: ¸ðµÎ ²û
+                // ï¿½ï¿½ ï¿½ï¿½: ï¿½ï¿½ï¿½ ï¿½ï¿½
                 default: seg_1_data = 8'b0000_0000; 
             endcase
         end

@@ -1,0 +1,21 @@
+# Vivado Generated Files
+*.jou
+*.log
+*.str
+*.pb
+*.dcp
+*.wdb
+*.vdi
+.Xil/
+
+# Project Specific Generated Folders
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.ioplanning/
+*.hbs/
+
+# Bitstream (Optional: Keep if you want to version control the binary)
+# *.bit

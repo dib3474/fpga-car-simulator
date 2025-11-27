@@ -5,31 +5,31 @@ module Vehicle_Logic (
     input [7:0] adc_accel,
     input is_brake_normal, input is_brake_hard,
     
-    output reg [7:0] speed,
-    output reg [13:0] rpm,
-    output reg [7:0] fuel,
-    output reg [7:0] temp,
-    output reg [31:0] odometer_raw,
-    output reg ess_trigger
+    output reg [7:0] speed = 0,
+    output reg [13:0] rpm = 800,
+    output reg [7:0] fuel = 100,
+    output reg [7:0] temp = 50,
+    output reg [31:0] odometer_raw = 0,
+    output reg ess_trigger = 0
 );
     parameter IDLE_RPM = 800;
 
-    // 1. ¼Óµµ ¹× ESS °è»ê
+    // 1. ï¿½Óµï¿½ ï¿½ï¿½ ESS ï¿½ï¿½ï¿½
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             speed <= 0; ess_trigger <= 0;
         end else if (tick_speed) begin
             if (current_gear == 4'd12 || current_gear == 4'd6) begin // D or R
-                if (is_brake_hard) begin // ±Þºê·¹ÀÌÅ©
+                if (is_brake_hard) begin // ï¿½Þºê·¹ï¿½ï¿½Å©
                     if(speed >= 10) speed <= speed - 10; else speed <= 0;
                     if(speed > 50) ess_trigger <= 1;
-                end else if (is_brake_normal) begin // ÀÏ¹Ýºê·¹ÀÌÅ©
+                end else if (is_brake_normal) begin // ï¿½Ï¹Ýºê·¹ï¿½ï¿½Å©
                     if(speed >= 2) speed <= speed - 2; else speed <= 0;
                     ess_trigger <= 0;
-                end else if (adc_accel > 10) begin // °¡¼Ó
+                end else if (adc_accel > 10) begin // ï¿½ï¿½ï¿½ï¿½
                     if(speed < 255) speed <= speed + 1;
                     ess_trigger <= 0;
-                end else begin // ÀÚ¿¬°¨¼Ó
+                end else begin // ï¿½Ú¿ï¿½ï¿½ï¿½ï¿½ï¿½
                     if(speed > 0) speed <= speed - 1;
                     ess_trigger <= 0;
                 end
@@ -40,12 +40,12 @@ module Vehicle_Logic (
         end
     end
 
-    // 2. 6´Ü º¯¼Ó ¹× RPM
+    // 2. 6ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ RPM
     always @(*) begin
         case (current_gear)
             4'd3, 4'd9: rpm = IDLE_RPM + (adc_accel * 20); // P, N
             4'd6: rpm = IDLE_RPM + (speed * 60); // R
-            4'd12: begin // D (6´Ü)
+            4'd12: begin // D (6ï¿½ï¿½)
                 if (speed < 30)       rpm = IDLE_RPM + (speed * 100);
                 else if (speed < 60)  rpm = 1500 + ((speed - 30) * 80);
                 else if (speed < 90)  rpm = 1500 + ((speed - 60) * 60);
@@ -58,7 +58,7 @@ module Vehicle_Logic (
         endcase
     end
 
-    // 3. OBD µ¥ÀÌÅÍ (°Å¸®, ¿¬·á, ¿Âµµ)
+    // 3. OBD ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½Å¸ï¿½, ï¿½ï¿½ï¿½ï¿½, ï¿½Âµï¿½)
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             fuel <= 100; temp <= 50; odometer_raw <= 0;

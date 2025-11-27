@@ -1,36 +1,36 @@
 module Clock_Gen (
     input clk,              // 50MHz
     input rst,
-    output reg tick_1sec,   // 1ÃÊ (°Å¸®, ¿¬·á¿ë)
-    output reg tick_speed,  // ¼Óµµ °»½Å¿ë (¾à 0.05ÃÊ)
-    output reg tick_scan,   // 7-Seg ½ºÄµ¿ë (¾à 1ms)
-    output reg tick_sound   // ¼Ò¸®¿ë (»ç¿ë ¾ÈÇÒ¼öµµ ÀÖÀ½)
+    output reg tick_1sec = 0,   // 1 (Å¸, )
+    output reg tick_speed = 0,  // Óµ Å¿ ( 0.05)
+    output reg tick_scan = 0,   // 7-Seg Äµ ( 1ms)
+    output reg tick_sound = 0   // Ò¸ ( Ò¼ )
 );
 
-    reg [25:0] cnt_1sec;
-    reg [20:0] cnt_speed;
-    reg [15:0] cnt_scan;
+    reg [25:0] cnt_1sec = 0;
+    reg [21:0] cnt_speed = 0; // Increased width to support 2,500,000 (needs 22 bits)
+    reg [15:0] cnt_scan = 0;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             cnt_1sec <= 0; cnt_speed <= 0; cnt_scan <= 0;
             tick_1sec <= 0; tick_speed <= 0; tick_scan <= 0;
         end else begin
-            // 1ÃÊ Tick
+            // 1ï¿½ï¿½ Tick
             if (cnt_1sec >= 50_000_000 - 1) begin
                 cnt_1sec <= 0; tick_1sec <= 1;
             end else begin
                 cnt_1sec <= cnt_1sec + 1; tick_1sec <= 0;
             end
 
-            // ¼Óµµ °»½Å Tick
+            // ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ Tick
             if (cnt_speed >= 2_500_000 - 1) begin
                 cnt_speed <= 0; tick_speed <= 1;
             end else begin
                 cnt_speed <= cnt_speed + 1; tick_speed <= 0;
             end
 
-            // ½ºÄµ Tick
+            // ï¿½ï¿½Äµ Tick
             if (cnt_scan >= 50_000 - 1) begin
                 cnt_scan <= 0; tick_scan <= 1;
             end else begin
