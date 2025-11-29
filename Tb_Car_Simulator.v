@@ -50,14 +50,6 @@ module Tb_Car_Simulator;
         $display("[Time: %0t] LED Changed: %b (L: %b, R: %b, Tail: %b)", $time, LED, LED[7:6], LED[1:0], LED[5:2]);
     end
 
-    always @(SEG_DATA) begin
-        // 7-Segment 데이터가 변할 때마다 출력하면 너무 많을 수 있으므로, 
-        // 특정 조건이나 주기적으로 확인하는 것이 좋지만, 요청에 따라 변화를 감지합니다.
-        // 여기서는 스캔 동작 때문에 계속 변하므로, 주요 이벤트 시점에만 값을 찍거나
-        // 변화가 있을 때 간단히 로그를 남깁니다.
-        // $display("[Time: %0t] SEG_DATA: %h, SEG_COM: %h", $time, SEG_DATA, SEG_COM);
-    end
-
     always @(posedge KEY_3) $display("[Time: %0t] Key 3 Pressed (Gear P)", $time);
     always @(posedge KEY_6) $display("[Time: %0t] Key 6 Pressed (Gear R)", $time);
     always @(posedge KEY_9) $display("[Time: %0t] Key 9 Pressed (Gear N)", $time);
@@ -178,6 +170,29 @@ module Tb_Car_Simulator;
         press_key_input(11); // KEY_SHARP (Gear D)
         $display("--- Key Test Complete ---");
         
+        // [추가] 엔진 시동 걸기 (가속 테스트 전 필수)
+        // 조건: Gear=P, Brake(KEY_STAR) + StartButton(KEY_0)
+        $display("[Time: %0t] Starting Engine for Acceleration Test...", $time);
+        
+        // 1. 기어 P 확인
+        press_key_3; 
+        #1000000;
+        
+        // 2. 브레이크 + 시동 버튼 동시 입력
+        KEY_STAR = 1; // Brake
+        #1000000;
+        KEY_0 = 1;    // Start Button
+        #60000000;    // [수정] 60ms Press (tick_spd 50ms 주기를 커버하기 위해 충분히 길게)
+        KEY_0 = 0;
+        KEY_STAR = 0;
+        #1000000;
+        
+        $display("[Time: %0t] Engine Should be ON now. Shifting to D...", $time);
+        
+        // 3. 기어 D 변경
+        press_key_sharp;
+        #1000000;
+
         // 4. 가속 테스트 (D 기어 상태여야 함)
         $display("[Time: %0t] Accelerating Test Start...", $time);
         
@@ -259,7 +274,7 @@ module Tb_Car_Simulator;
                 11: KEY_SHARP = 1;
             endcase
             $display("[Time: %0t] Key %d Pressed", $time, k);
-            #2000000; // 40ms Press
+            #60000000; // [수정] 60ms Press (tick_spd 50ms 주기를 커버하기 위해)
             
             case(k)
                 1: KEY_1 = 0;
@@ -280,67 +295,68 @@ module Tb_Car_Simulator;
         end
     endtask
 
-    // --- SPI Slave Model (ADC Emulator) ---
-    // FPGA가 Master로서 CLK과 MOSI를 보내면, 이 블록이 ADC처럼 동작하여 MISO로 값을 보냄
-    reg [11:0] adc_shift_out;
-    reg [4:0] spi_bit_cnt;
-    reg [2:0] spi_cmd_reg; // Start, SGL, CH
+    // --- SPI Slave Model (ADC128S022 Emulator) ---
+    // Updated to match the new ADC128S022 protocol implementation in SPI_ADC_Controller.v
+    // Protocol: 16 SCLK cycles.
+    // MOSI: Address bits at cycle 2, 3, 4 (ADD2, ADD1, ADD0)
+    // MISO: Data bits at cycle 5~16 (D11~D0)
+    // Note: The controller uses a pipeline (Address N -> Data N-1).
+    // But for simulation simplicity, we can just return the data for the requested address immediately or next frame.
+    // The controller expects data on the SAME frame for the PREVIOUS address? 
+    // Let's check the controller code:
+    // "Pipeline: Data received is for the PREVIOUS channel."
+    // "If we just sent CH1 request (channel_addr=1), we received CH0 data."
+    // So, the ADC model should output the data corresponding to the address received in the PREVIOUS frame.
     
-    always @(negedge SPI_AD) begin // CS Falling Edge (Start Transaction)
-        spi_bit_cnt = 0;
-        spi_cmd_reg = 0;
+    reg [11:0] current_adc_data;
+    reg [11:0] next_adc_data;
+    reg [2:0] current_addr;
+    reg [4:0] bit_cnt;
+    
+    initial begin
+        current_adc_data = 0;
+        next_adc_data = 0;
+        current_addr = 0;
     end
 
-    always @(posedge SPI_SCK) begin // Rising Edge: FPGA reads MISO, ADC reads MOSI
-        // ADC reads MOSI
-        if (spi_bit_cnt < 5) begin
-            spi_cmd_reg = {spi_cmd_reg[1:0], SPI_DIN};
-        end
+    always @(negedge SPI_AD) begin // CS Falling Edge (Start Frame)
+        bit_cnt = 0;
+        // Load the data determined from the PREVIOUS frame's address
+        current_adc_data = next_adc_data; 
     end
 
-    always @(negedge SPI_SCK) begin // Falling Edge: ADC updates MISO
+    always @(posedge SPI_SCK) begin // Rising Edge: FPGA reads MISO
+        // MISO Data Output Logic
+        // Data is output on Falling Edge of SCLK by ADC, read on Rising Edge by FPGA.
+        // So we should update MISO on Falling Edge.
+    end
+
+    always @(negedge SPI_SCK) begin // Falling Edge: ADC updates MISO, Reads MOSI
         if (SPI_AD == 0) begin
-            // Protocol: Start(1), SGL(1), CH(1), MSBF(1), Null(1) -> Total 5 bits input before data
-            // Simplified Model:
-            // After 4th clock (MSBF), ADC prepares data.
-            // 5th clock falling edge: Output Null bit (0)
-            // 6th clock falling edge: Output B11
-            
-            if (spi_bit_cnt == 4) begin
-                // Determine Channel from captured command
-                // Command sequence received: Start, SGL, CH, MSBF
-                // We just look at the 'CH' bit which was the 3rd bit received.
-                // But for simplicity, let's just toggle based on the command bit.
-                // Let's assume correct timing.
-                
-                // Check Channel (spi_cmd_reg[1] corresponds to CH bit roughly)
-                // Actually, let's just use the global analog variables directly for simplicity
-                // If FPGA sent CH0 command, we send accel. If CH1, send CDS.
-                // Since we can't easily decode perfectly in this simple model, 
-                // we will alternate or just send accel for now as it's the main test.
-                
-                // Let's try to decode properly:
-                // Bit 0: Start
-                // Bit 1: SGL
-                // Bit 2: CH
-                // Bit 3: MSBF
-                // We are at count 4.
-                
-                if (spi_cmd_reg[1] == 1) adc_shift_out = analog_cds; // CH1
-                else adc_shift_out = analog_accel; // CH0
+            // 1. Read MOSI (Address)
+            // Address bits are at bit_cnt 1, 2, 3 (Cycle 2, 3, 4) corresponding to ADD2, ADD1, ADD0
+            if (bit_cnt == 1) current_addr[2] = SPI_DIN;
+            if (bit_cnt == 2) current_addr[1] = SPI_DIN;
+            if (bit_cnt == 3) begin
+                current_addr[0] = SPI_DIN;
+                // Address reception complete. Prepare data for NEXT frame.
+                if (current_addr == 0) next_adc_data = analog_accel; // CH0
+                else if (current_addr == 1) next_adc_data = analog_cds;   // CH1
+                else next_adc_data = 0;
             end
-            
-            if (spi_bit_cnt >= 4 && spi_bit_cnt <= 16) begin
-                if (spi_bit_cnt == 4) SPI_DOUT = 0; // Null Bit
-                else begin
-                    SPI_DOUT = adc_shift_out[11]; // MSB First
-                    adc_shift_out = {adc_shift_out[10:0], 1'b0};
-                end
+
+            // 2. Write MISO (Data)
+            // Data bits D11~D0 are output from cycle 5 to 16.
+            // bit_cnt 4 -> D11
+            // ...
+            // bit_cnt 15 -> D0
+            if (bit_cnt >= 4 && bit_cnt <= 15) begin
+                SPI_DOUT = current_adc_data[15 - bit_cnt]; // D11 is at index 11. 15-4=11.
             end else begin
-                SPI_DOUT = 0; // High-Z usually
+                SPI_DOUT = 0; // Z or 0
             end
             
-            spi_bit_cnt = spi_bit_cnt + 1;
+            bit_cnt = bit_cnt + 1;
         end
     end
 

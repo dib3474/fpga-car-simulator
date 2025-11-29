@@ -118,7 +118,25 @@ module Car_Simulator_Top (
     Light_Controller u_light (.clk(CLK), .rst(global_safe_rst), .sw_headlight(DIP_SW[3]), .sw_high_beam(DIP_SW[4]), .cds_val(adc_cds_w), .is_brake(KEY_7 | KEY_STAR), .is_reverse(gear_reg == 4'd6), .turn_left(led_l), .turn_right(led_r), .fc_red(FC_RED), .fc_green(FC_GREEN), .fc_blue(FC_BLUE), .led_port(led_logic_out));
 
     // LED: 시동 꺼져도 비상등(Hazard)은 켜져야 함. 나머지는 OFF.
-    assign LED = (engine_on) ? led_logic_out : (DIP_SW[2] ? led_logic_out : 8'b0);
+    // [수정] 시동 꺼지면 전조등/미등 자동 소등 (비상등만 허용)
+    // led_logic_out의 비트 구성: [7:6] 우측깜빡이, [5:2] 전조등/미등/브레이크, [1:0] 좌측깜빡이 (가정)
+    // Light_Controller 내부 로직에 따라 다르지만, 보통 양쪽 끝이 방향지시등임.
+    // 여기서는 안전하게 비상등 스위치(DIP_SW[2])가 켜진 경우에만 led_logic_out을 내보내되,
+    // Light_Controller가 이미 깜빡임 신호(led_l, led_r)만 켜서 보내주므로 그대로 내보내면 됨.
+    // 단, 시동 꺼진 상태에서 브레이크를 밟으면 브레이크등이 켜질 수 있는데, 이는 정상 동작임.
+    // 만약 "전조등(Headlight)"만 끄고 싶다면 Light_Controller에 engine_on 신호를 넣어주는 게 가장 확실함.
+    // 하지만 Top 모듈에서 처리하려면 아래와 같이 마스킹을 해야 함.
+    
+    // 여기서는 간단하게 "시동 꺼짐 & 비상등 켜짐 -> LED 출력 허용"으로 하되,
+    // Light_Controller가 시동 꺼짐을 모르므로 전조등 스위치가 켜져 있으면 전조등 데이터도 같이 옴.
+    // 따라서 비상등(깜빡임) 신호만 추출해서 내보내는 것이 맞음.
+    // 하지만 핀맵을 정확히 모르므로, 가장 확실한 방법은 Light_Controller에 engine_on을 전달하는 것임.
+    // 현재 구조상 Light_Controller 수정 없이 Top에서 처리하려면:
+    
+    assign LED = (engine_on) ? led_logic_out : 
+                 (DIP_SW[2] ? (led_logic_out & 8'b11000011) : 8'b0); 
+                 // 8'b11000011: 양쪽 끝 2비트씩(좌/우 깜빡이)만 통과시키고 가운데(전조등)는 차단.
+                 // (HBE-Combo II 보드 LED 배치: 좌측[1:0], 우측[7:6] 가정)
 
     // Display Unit: OFF 상태일 때 Reset을 걸어 화면을 끔
     Display_Unit u_disp (

@@ -85,7 +85,7 @@ module SPI_ADC_Controller (
                     // Write MOSI on Falling Edge
                     if (sck_enable_fall) begin
                         bit_cnt <= bit_cnt + 1;
-                        if (bit_cnt == 15) begin
+                        if (bit_cnt == 16) begin // [수정] 16번째 비트까지 다 읽고 종료 (기존 15 -> 16)
                             state <= S_DONE;
                         end else begin
                             // Send Address at Bit 13, 12, 11 (Cycle 2, 3, 4)

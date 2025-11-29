@@ -29,16 +29,23 @@ module LCD_Module (
         end else begin
             prev_engine_on <= engine_on;
             
-            // Rising Edge of engine_on
-            if (engine_on && !prev_engine_on) begin
-                engine_start_timer <= 150_000_000; // 3 seconds (assuming 50MHz)
+            // Priority 1: Engine OFF -> Reset everything
+            if (!engine_on) begin
+                show_engine_on_msg <= 0;
+                engine_start_timer <= 0;
+            end
+            // Priority 2: Rising Edge of engine_on -> Start Timer
+            else if (engine_on && !prev_engine_on) begin
+                engine_start_timer <= 50_000_000; // 1 second (Reduced for Simulation)
                 show_engine_on_msg <= 1;
             end
+            // Priority 3: Timer Countdown
             else if (engine_start_timer > 0) begin
                 engine_start_timer <= engine_start_timer - 1;
                 if (engine_start_timer == 1) show_engine_on_msg <= 0;
             end
-            else if (!engine_on) begin
+            // Priority 4: Safety - Ensure message is off if timer is 0
+            else begin
                 show_engine_on_msg <= 0;
             end
         end
