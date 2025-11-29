@@ -17,6 +17,7 @@ module Tb_Car_Simulator;
     wire LCD_RS, LCD_RW, LCD_E;
     wire [7:0] LCD_DATA;
     wire [7:0] SEG_1_DATA;
+    wire SERVO_PWM;
     wire [3:0] FC_RED, FC_GREEN, FC_BLUE;
 
     // --- Unit Under Test (UUT) ---
@@ -30,7 +31,7 @@ module Tb_Car_Simulator;
         .PIEZO(PIEZO), 
         .LED(LED), 
         .LCD_RS(LCD_RS), .LCD_RW(LCD_RW), .LCD_E(LCD_E), .LCD_DATA(LCD_DATA), 
-        .SEG_1_DATA(SEG_1_DATA), 
+        .SEG_1_DATA(SEG_1_DATA), .SERVO_PWM(SERVO_PWM),
         .FC_RED(FC_RED), .FC_GREEN(FC_GREEN), .FC_BLUE(FC_BLUE)
     );
 

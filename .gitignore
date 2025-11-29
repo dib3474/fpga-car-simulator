@@ -19,3 +19,4 @@
 
 # Bitstream (Optional: Keep if you want to version control the binary)
 # *.bit
+*.xlsx
