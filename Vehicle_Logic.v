@@ -18,6 +18,10 @@ module Vehicle_Logic (
     // 물리 연산을 위한 변수
     reg [9:0] power;      // 엔진 힘
     reg [9:0] resistance; // 공기/바닥 저항
+    
+    // [개선 1] 불감대(Dead Zone) 적용: 노이즈로 인한 미세 떨림 방지
+    wire [7:0] effective_accel;
+    assign effective_accel = (adc_accel > 10) ? adc_accel : 8'd0;
 
     // 1. 물리 엔진 (가속도 기반)
     always @(posedge clk or posedge rst) begin
@@ -26,8 +30,8 @@ module Vehicle_Logic (
         else if (tick_speed) begin
             
             // A. 힘(Power) 계산: 악셀을 밟을수록 커짐
-            if (current_gear == 4'd12) power = adc_accel; // D: 100% 힘
-            else if (current_gear == 4'd6) power = adc_accel / 2; // R: 50% 힘
+            if (current_gear == 4'd12) power = effective_accel; // D: 100% 힘
+            else if (current_gear == 4'd6) power = effective_accel / 2; // R: 50% 힘
             else power = 0; // P, N: 동력 없음
 
             // B. 저항(Resistance) 계산: 속도가 빠를수록 저항이 커짐 (자연 감속)
@@ -47,7 +51,12 @@ module Vehicle_Logic (
                 
                 // 힘이 저항보다 크면 가속 (관성 주행)
                 if (power > resistance) begin
-                    if (speed < 250) speed <= speed + 1; // 천천히 가속
+                    // [개선 2] 후진 속도 제한 (최대 50km/h)
+                    if (current_gear == 4'd6 && speed >= 50) begin
+                        // 속도 유지 (가속 안함)
+                    end else if (speed < 250) begin
+                        speed <= speed + 1; // 천천히 가속
+                    end
                 end 
                 // 힘이 부족하면 감속 (자연 감속)
                 else if (power < resistance) begin
@@ -61,7 +70,7 @@ module Vehicle_Logic (
     always @(*) begin
         if (!engine_on) rpm = 0;
         else if (current_gear == 4'd3 || current_gear == 4'd9) // P, N
-            rpm = IDLE_RPM + (adc_accel * 20); // 공회전
+            rpm = IDLE_RPM + (effective_accel * 20); // 공회전 (불감대 적용된 값 사용)
         else begin // D, R
             // 가상의 기어비 적용
             if (speed < 30)       rpm = IDLE_RPM + (speed * 90);       // 1단
@@ -76,11 +85,23 @@ module Vehicle_Logic (
     end
 
     // 3. OBD 데이터
+    reg [1:0] fuel_timer; // 연료 소비 속도 조절용
+
     always @(posedge clk or posedge rst) begin
-        if (rst) begin fuel<=100; temp<=40; odometer_raw<=0; end
+        if (rst) begin fuel<=100; temp<=40; odometer_raw<=0; fuel_timer<=0; end
         else if (engine_on && tick_1sec) begin
             odometer_raw <= odometer_raw + speed;
-            if(fuel>0 && (speed>0 || rpm>1000)) fuel<=fuel-1;
+            
+            // [개선 3] 연료 소비 속도 조절 (3초에 1씩 감소)
+            if (speed > 0 || rpm > 1000) begin
+                if (fuel_timer >= 2) begin
+                    if (fuel > 0) fuel <= fuel - 1;
+                    fuel_timer <= 0;
+                end else begin
+                    fuel_timer <= fuel_timer + 1;
+                end
+            end
+            
             if(rpm>3000 && temp<200) temp<=temp+2; else if(temp>40) temp<=temp-1;
         end
     end
