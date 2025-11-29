@@ -2,69 +2,93 @@ module Light_Controller (
     input clk,
     input rst,
     
-    // ÀÔ·Â
-    input sw_headlight,      // ¼öµ¿ ÀüÁ¶µî (SW4)
-    input sw_high_beam,      // »óÇâµî ½ºÀ§Ä¡ (SW5)
-    input [7:0] cds_val,     // Á¶µµ ¼¾¼­ °ª
-    input is_brake,          // ºê·¹ÀÌÅ©
-    input turn_left,         // ÁÂÃø ±ôºıÀÌ
-    input turn_right,        // ¿ìÃø ±ôºıÀÌ
+    // ì…ë ¥
+    input sw_headlight,      // ì „ì¡°ë“± ìŠ¤ìœ„ì¹˜ (SW4)
+    input sw_high_beam,      // ìƒí–¥ë“± ìŠ¤ìœ„ì¹˜ (SW5)
+    input [7:0] cds_val,     // ì¡°ë„ ì„¼ì„œ ê°’
+    input is_brake,          // ë¸Œë ˆì´í¬
+    input is_reverse,        // í›„ì§„ ê¸°ì–´ (R) ìƒíƒœ
+    input turn_left,         // ì¢Œì¸¡ ê¹œë¹¡ì´
+    input turn_right,        // ìš°ì¸¡ ê¹œë¹¡ì´
     
-    // ¡Ú Ãâ·Â: Full Color LED (4°³ x 3»ö = 12ÇÉ)
+    // í’€ ì»¬ëŸ¬ LED (4ê°œ x 3ìƒ‰ = 12í•€)
     // [0]:LED1, [1]:LED2, [2]:LED3, [3]:LED4
     output wire [3:0] fc_red,
     output wire [3:0] fc_green,
     output wire [3:0] fc_blue,
     
-    // Ãâ·Â: ÀÏ¹İ LED
+    // ì¶œë ¥: ì¼ë°˜ LED
     output [7:0] led_port
 );
 
-    // 1. ¿ÀÅä¶óÀÌÆ® ÆÇ´Ü
+    // 1. ì˜¤í† ë¼ì´íŠ¸ íŒë‹¨
     wire is_dark = (cds_val < 100); 
-    wire head_on = sw_headlight || is_dark; // ÀüÁ¶µî ON Á¶°Ç
+    wire head_on = sw_headlight || is_dark; // ì „ì¡°ë“± ON ì¡°ê±´
     
-    // 2. ÀüÁ¶µî ·ÎÁ÷ (White Color: R+G+B ¸ğµÎ ON)
-    // ÇÏÇâµî (¾Æ·¡ 2°³: LED3, LED4 -> ÀÎµ¦½º 2, 3)
-    // »óÇâµî (À§ 2°³: LED1, LED2 -> ÀÎµ¦½º 0, 1)
+    // 2. ì „ì¡°ë“± ì œì–´ (White Color: R+G+B ëª¨ë‘ ON)
+    // í•˜í–¥ë“± (ì•„ë˜ 2ê°œ: LED3, LED4 -> ì¸ë±ìŠ¤ 2, 3)
+    // ìƒí–¥ë“± (ìœ„ 2ê°œ: LED1, LED2 -> ì¸ë±ìŠ¤ 0, 1)
     
     wire low_beam_on = head_on; 
-    wire high_beam_on = head_on && sw_high_beam; // ÀüÁ¶µî ÄÑÁø »óÅÂ¿¡¼­ »óÇâµî ½ºÀ§Ä¡
+    wire high_beam_on = head_on && sw_high_beam; // ì „ì¡°ë“± ì¼œì§„ ìƒíƒœì—ì„œ ìƒí–¥ë“± ìŠ¤ìœ„ì¹˜
 
-    // °¢°¢ÀÇ LED Á¦¾î (Active LowÀÎÁö HighÀÎÁö È®ÀÎ ÇÊ¿ä, º¸Åë High=ON)
-    // LED 1 (»óÇâµî)
+    // í’€ì»¬ëŸ¬ LED ë§¤í•‘ (Active Lowì¸ì§€ Highì¸ì§€ í™•ì¸ í•„ìš”, ì—¬ê¸°ì„  High=ON)
+    // LED 1 (ìƒí–¥ë“±)
     assign fc_red[0]   = high_beam_on;
     assign fc_green[0] = high_beam_on;
     assign fc_blue[0]  = high_beam_on;
     
-    // LED 2 (»óÇâµî)
+    // LED 2 (ìƒí–¥ë“±)
     assign fc_red[1]   = high_beam_on;
     assign fc_green[1] = high_beam_on;
     assign fc_blue[1]  = high_beam_on;
     
-    // LED 3 (ÇÏÇâµî)
+    // LED 3 (í•˜í–¥ë“±)
     assign fc_red[2]   = low_beam_on;
     assign fc_green[2] = low_beam_on;
     assign fc_blue[2]  = low_beam_on;
     
-    // LED 4 (ÇÏÇâµî)
+    // LED 4 (í•˜í–¥ë“±)
     assign fc_red[3]   = low_beam_on;
     assign fc_green[3] = low_beam_on;
     assign fc_blue[3]  = low_beam_on;
 
-    // 3. ÈÄ¹Ìµî(¹Ìµî/ºê·¹ÀÌÅ©µî) PWM (±âÁ¸ ·ÎÁ÷ À¯Áö)
-    reg [4:0] pwm_cnt;
-    always @(posedge clk) pwm_cnt <= pwm_cnt + 1;
-    wire dim_light = pwm_cnt[4]; 
-    wire tail_light_on = is_brake ? 1'b1 : (head_on ? dim_light : 1'b0);
+    // 3. í…Œì¼ë¨í”„/ë¸Œë ˆì´í¬ë“±/í›„ì§„ë“± PWM ì œì–´
+    // PWM ì¹´ìš´í„°: 0~9 (10ë‹¨ê³„ ë°ê¸° ì¡°ì ˆ)
+    reg [3:0] pwm_cnt;
+    always @(posedge clk) begin
+        if (pwm_cnt >= 9) pwm_cnt <= 0;
+        else pwm_cnt <= pwm_cnt + 1;
+    end
 
-    // 4. ÀÏ¹İ LED Ãâ·Â
+    // ë°ê¸° ì„¤ì •
+    // 100% (ë¸Œë ˆì´í¬): í•­ìƒ 1
+    // 70% (í›„ì§„ë“±): pwm_cnt < 7
+    // 30% (ë¯¸ë“±): pwm_cnt < 3
+    
+    wire pwm_100 = 1'b1;
+    wire pwm_70  = (pwm_cnt < 7);
+    wire pwm_30  = (pwm_cnt < 3);
+
+    // ê° LED ë³„ ë°ê¸° ë¡œì§
+    // ë°”ê¹¥ìª½ (LED 5, 2): ë¸Œë ˆì´í¬(100%) > ë¯¸ë“±(30%)
+    // ì•ˆìª½ (LED 4, 3): í›„ì§„(70%) > ë¸Œë ˆì´í¬(100%) > ë¯¸ë“±(30%)
+    
+    wire tail_outer; // LED 5, 2
+    wire tail_inner; // LED 4, 3
+
+    assign tail_outer = is_brake ? pwm_100 : (head_on ? pwm_30 : 1'b0);
+    
+    // ì•ˆìª½ ë“±: í›„ì§„(R)ì´ë©´ 70%, ì•„ë‹ˆë©´ (ë¸Œë ˆì´í¬ 100% or ë¯¸ë“± 30%)
+    assign tail_inner = is_reverse ? pwm_70 : (is_brake ? pwm_100 : (head_on ? pwm_30 : 1'b0));
+
+    // 4. ì¼ë°˜ LED ì¶œë ¥
     assign led_port[7] = turn_left;
     assign led_port[6] = turn_left;
-    assign led_port[5] = tail_light_on;
-    assign led_port[4] = tail_light_on;
-    assign led_port[3] = tail_light_on;
-    assign led_port[2] = tail_light_on;
+    assign led_port[5] = tail_outer;
+    assign led_port[4] = tail_inner; // í›„ì§„ë“± ê²¸ìš©
+    assign led_port[3] = tail_inner; // í›„ì§„ë“± ê²¸ìš©
+    assign led_port[2] = tail_outer;
     assign led_port[1] = turn_right;
     assign led_port[0] = turn_right;
 

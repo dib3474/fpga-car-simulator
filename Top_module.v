@@ -33,7 +33,7 @@ module Car_Simulator_Top (
     assign global_safe_rst = (KEY_8 && (spd_w == 0) && (gear_reg == 4'd3) && KEY_STAR && DIP_SW[7]); 
 
     // --- 클럭 생성 ---
-    Clock_Gen u_clk (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .tick_scan(tick_scn), .tick_sound(tick_snd));
+    Clock_Gen u_clk (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .tick_scan(tick_scn));
     SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_w), .adc_cds(adc_cds_w));
 
     assign accel_active = (adc_accel_w > 8'd10);
@@ -48,16 +48,22 @@ module Car_Simulator_Top (
         .ess_active_out(ess_active_wire)
     );
 
-    // --- 시동 로직 (Debounce 적용) ---
-    // 시동 조건: P단(KEY_3) + 브레이크(KEY_STAR) + 시동버튼(KEY_0)
-    // 시동 끄기: P단 + 시동버튼(KEY_0) (브레이크 없이)
+    // --- 시동 로직 (3단계: OFF -> ACC -> RUN) ---
+    // OFF: 전원 꺼짐
+    // ACC (Key On): 0번 누름. LCD "KEY ON"
+    // RUN (Engine On): 브레이크(*) + 0번 누름. LCD "ENGINE ON" -> 주행
+    
+    parameter STATE_OFF = 2'd0;
+    parameter STATE_ACC = 2'd1;
+    parameter STATE_RUN = 2'd2;
+    reg [1:0] power_state = STATE_OFF;
     
     reg [3:0] start_debounce_cnt;
     reg prev_key_0;
     
     always @(posedge CLK or posedge global_safe_rst) begin
         if (global_safe_rst) begin
-            engine_on <= 1'b0;
+            power_state <= STATE_OFF;
             start_debounce_cnt <= 0;
             prev_key_0 <= 0;
         end else if (tick_spd) begin // 50ms 주기
@@ -65,16 +71,25 @@ module Car_Simulator_Top (
             
             // KEY_0(시동버튼)이 눌린 순간 (Rising Edge)
             if (KEY_0 && !prev_key_0) begin
-                if (engine_on) begin
-                    // 시동 끄기: 속도 0일 때만 가능
-                    if (spd_w == 0) engine_on <= 1'b0;
-                end else begin
-                    // 시동 켜기: P단 + 브레이크(KEY_STAR) + 속도 0
-                    if (gear_reg == 4'd3 && KEY_STAR && spd_w == 0) engine_on <= 1'b1;
-                end
+                case (power_state)
+                    STATE_OFF: begin
+                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN; // 브레이크+P+버튼 -> 시동
+                        else power_state <= STATE_ACC; // 그냥 버튼 -> ACC (Key On)
+                    end
+                    STATE_ACC: begin
+                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN; // 브레이크+P+버튼 -> 시동
+                        else power_state <= STATE_OFF; // 그냥 버튼 -> 끄기
+                    end
+                    STATE_RUN: begin
+                        if (spd_w == 0) power_state <= STATE_OFF; // 정지 상태에서 버튼 -> 끄기
+                    end
+                endcase
             end
         end
     end
+
+    // 엔진 상태 연결
+    always @(*) engine_on = (power_state == STATE_RUN);
 
     // --- 기어 변경 로직 ---
     always @(posedge CLK or posedge global_safe_rst) begin
@@ -100,37 +115,33 @@ module Car_Simulator_Top (
     wire lcd_rs_logic, lcd_rw_logic, lcd_e_logic;
     
     Turn_Signal_Logic u_sig (.clk(CLK), .rst(global_safe_rst), .sw_left(DIP_SW[0]), .sw_right(DIP_SW[1]), .sw_hazard(DIP_SW[2]), .ess_active(ess_active_wire), .led_left(led_l), .led_right(led_r));
-    Light_Controller u_light (.clk(CLK), .rst(global_safe_rst), .sw_headlight(DIP_SW[3]), .sw_high_beam(DIP_SW[4]), .cds_val(adc_cds_w), .is_brake(KEY_7 | KEY_STAR), .turn_left(led_l), .turn_right(led_r), .fc_red(FC_RED), .fc_green(FC_GREEN), .fc_blue(FC_BLUE), .led_port(led_logic_out));
+    Light_Controller u_light (.clk(CLK), .rst(global_safe_rst), .sw_headlight(DIP_SW[3]), .sw_high_beam(DIP_SW[4]), .cds_val(adc_cds_w), .is_brake(KEY_7 | KEY_STAR), .is_reverse(gear_reg == 4'd6), .turn_left(led_l), .turn_right(led_r), .fc_red(FC_RED), .fc_green(FC_GREEN), .fc_blue(FC_BLUE), .led_port(led_logic_out));
 
     // LED: 시동 꺼져도 비상등(Hazard)은 켜져야 함. 나머지는 OFF.
     assign LED = (engine_on) ? led_logic_out : (DIP_SW[2] ? led_logic_out : 8'b0);
 
-    // Display Unit: 시동 꺼지면 꺼짐 (또는 P단만 표시?) -> 여기선 다 끄거나 0000 표시
-    // 시동 꺼지면 seg_data를 0으로? -> Display_Unit 내부에서 engine_on 처리 필요할 수도 있지만
-    // 여기서는 간단하게 engine_on이 0이면 입력을 0으로 줘서 0000 뜨게 하거나 아예 끄는게 나음.
-    // 하지만 Display_Unit은 engine_on 입력이 없으므로, rst를 활용하거나 입력을 0으로 만듦.
-    
+    // Display Unit: OFF 상태일 때 Reset을 걸어 화면을 끔
     Display_Unit u_disp (
         .clk(CLK), 
-        .rst(global_safe_rst), 
+        .rst(global_safe_rst || (power_state == STATE_OFF)), 
         .tick_scan(tick_scn), .obd_mode_sw(DIP_SW[7]), 
         .rpm(engine_on ? rpm_w : 14'd0), 
         .speed(engine_on ? spd_w : 8'd0), 
         .fuel(engine_on ? fuel_w : 8'd0), 
         .temp(engine_on ? temp_w : 8'd0), 
-        .gear_char(gear_reg), // 기어는 시동 꺼져도 P에 있으면 P라고 뜨는게 맞음 (ACC 모드 느낌)
+        .gear_char(gear_reg), 
         .seg_data(SEG_DATA), .seg_com(SEG_COM), .seg_1_data(SEG_1_DATA)
     );
 
-    // LCD: 시동 꺼지면 Backlight OFF (데이터 0)
-    LCD_Module u_lcd (.clk(CLK), .rst(global_safe_rst), .odometer(odo_w), .fuel(fuel_w), .is_side_brake(DIP_SW[6]), .lcd_rs(lcd_rs_logic), .lcd_rw(lcd_rw_logic), .lcd_e(lcd_e_logic), .lcd_data(lcd_data_logic));
+    // LCD: OFF 상태일 때 Reset을 걸어 화면을 끔
+    LCD_Module u_lcd (.clk(CLK), .rst(global_safe_rst || (power_state == STATE_OFF)), .engine_on(engine_on), .odometer(odo_w), .fuel(fuel_w), .is_side_brake(DIP_SW[6]), .lcd_rs(lcd_rs_logic), .lcd_rw(lcd_rw_logic), .lcd_e(lcd_e_logic), .lcd_data(lcd_data_logic));
     
-    assign LCD_RS = engine_on ? lcd_rs_logic : 0;
-    assign LCD_RW = engine_on ? lcd_rw_logic : 0;
-    assign LCD_E  = engine_on ? lcd_e_logic  : 0;
-    assign LCD_DATA = engine_on ? lcd_data_logic : 8'b0;
+    assign LCD_RS = lcd_rs_logic; 
+    assign LCD_RW = lcd_rw_logic;
+    assign LCD_E  = lcd_e_logic;
+    assign LCD_DATA = lcd_data_logic;
 
     Servo_Controller u_servo (.clk(CLK), .rst(global_safe_rst), .speed(spd_w), .servo_pwm(SERVO_PWM));
-    Sound_Unit u_snd (.clk(CLK), .rst(global_safe_rst), .rpm(rpm_w), .ess_active(led_l | led_r), .is_horn(KEY_1), .turn_signal_on(led_l | led_r), .engine_on(engine_on), .accel_active(accel_active), .piezo_out(PIEZO));
+    Sound_Unit u_snd (.clk(CLK), .rst(global_safe_rst), .rpm(rpm_w), .ess_active(led_l | led_r), .is_horn(KEY_1), .is_reverse(gear_reg == 4'd6), .turn_signal_on(led_l | led_r), .engine_on(engine_on), .accel_active(accel_active), .piezo_out(PIEZO));
 
 endmodule

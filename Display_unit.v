@@ -108,15 +108,15 @@ module Display_Unit (
     // Remapping based on observation: P->3, R->(c,d)
     // Logical Segments: a, b, c, d, e, f, g
     // --- 4. 1-Digit Output (Hardcoded Patterns) ---
-    // P: 0x5E, r: 0x0C, n: 0x0D, d: 0x2F (Based on pin remapping)
+    // P: 0xCE, r: 0x0A, n: 0x2A, d: 0x7A (User provided patterns + DP=0)
     always @(*) begin
         if (rst) seg_1_data = 8'h00; 
         else begin
             case (gear_char)
-                4'd3:  seg_1_data = 8'h5E; // P
-                4'd6:  seg_1_data = 8'h0C; // r
-                4'd9:  seg_1_data = 8'h0D; // n
-                4'd12: seg_1_data = 8'h2F; // d
+                4'd3:  seg_1_data = 8'hCE; // P (11001110)
+                4'd6:  seg_1_data = 8'h0A; // r (00001010)
+                4'd9:  seg_1_data = 8'h2A; // n (00101010)
+                4'd12: seg_1_data = 8'h7A; // d (01111010)
                 default: seg_1_data = 8'h00;
             endcase
         end

@@ -2,62 +2,59 @@ module Sound_Unit (
     input clk,              // 50MHz System Clock
     input rst,              // Reset
     
-    input [13:0] rpm,       // RPM (������ �� ����)
-    input ess_active,       // ESS (����)
-    input is_horn,          // ����
-    input turn_signal_on,   // ������ ���� ���� (LED ����)
-    input engine_on,
-    input accel_active,
+    input [13:0] rpm,       // RPM (Unused for sound now)
+    input ess_active,       // ESS (Unused)
+    input is_horn,          // Horn
+    input is_reverse,       // Reverse Gear (R)
+    input turn_signal_on,   // Turn Signal Blink State
+    input engine_on,        // Engine State
+    input accel_active,     // Accel State (Unused)
     
-    output reg piezo_out    // ���� ���
+    output reg piezo_out    // Piezo Output
 );
 
     // =========================================================
-    // 1. ������ ������ ���� LFSR (Linear Feedback Shift Register)
-    // �������(White Noise)�� ����� "������" �ϴ� �Ҹ��� ���ϴ�.
+    // 1. Reverse Warning Sound ("Beep- Beep-")
     // =========================================================
-    reg [15:0] lfsr;
-    wire lfsr_feedback;
-    assign lfsr_feedback = lfsr[0] ^ lfsr[2] ^ lfsr[3] ^ lfsr[5];
-
-    reg [19:0] engine_cnt;
-    reg [19:0] engine_period;
-    reg engine_sound_bit;
-
-    // RPM�� ���� ������ �ֱ� ��� (RPM�� �������� �ֱⰡ ª���� = ����)
-    // �Ҹ��� �ε巴�� �ϱ� ���� ���ļ� �뿪�� ����
-    always @(*) begin
-        if ((rpm < 500) || !engine_on || !accel_active) engine_period = 0; // �õ� ���� Ȥ�� ����ȸ��
-        else engine_period = 150000 - (rpm * 10); // �⺻������ RPM��ŭ ��
-    end
-
-    // ������ ���� ����
+    reg [25:0] reverse_cnt; // Counter for 1Hz cycle (0.5s ON, 0.5s OFF)
+    reg reverse_beep_en;    // Enable beep during ON time
+    
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            lfsr <= 16'hACE1; // �ʱ� �õ尪 (0�̸� �ȵ�)
-            engine_cnt <= 0;
-            engine_sound_bit <= 0;
+            reverse_cnt <= 0;
+            reverse_beep_en <= 0;
         end else begin
-            if (engine_period != 0) begin
-                if (engine_cnt >= engine_period) begin
-                    engine_cnt <= 0;
-                    // LFSR ����Ʈ (������ ����)
-                    lfsr <= {lfsr_feedback, lfsr[15:1]};
-                    // ���� ��Ʈ�� ����Ͽ� "ġ��" �Ÿ��� �Ҹ� ����
-                    engine_sound_bit <= lfsr[0]; 
-                end else begin
-                    engine_cnt <= engine_cnt + 1;
-                end
+            if (is_reverse && engine_on) begin
+                if (reverse_cnt >= 50_000_000) reverse_cnt <= 0; // 1 second period
+                else reverse_cnt <= reverse_cnt + 1;
+                
+                // Beep for first 0.5 sec
+                reverse_beep_en <= (reverse_cnt < 25_000_000);
             end else begin
-                engine_sound_bit <= 0;
+                reverse_cnt <= 0;
+                reverse_beep_en <= 0;
             end
         end
     end
 
+    reg [15:0] reverse_tone_cnt;
+    reg reverse_wave;
+    // 1kHz Tone for Reverse
+    always @(posedge clk) begin
+        if (reverse_beep_en) begin
+            if (reverse_tone_cnt >= 25000) begin 
+                reverse_tone_cnt <= 0;
+                reverse_wave <= ~reverse_wave;
+            end else reverse_tone_cnt <= reverse_tone_cnt + 1;
+        end else begin
+            reverse_wave <= 0;
+            reverse_tone_cnt <= 0;
+        end
+    end
+
     // =========================================================
-    // 2. ������ �Ҹ� ("��-��" ������ ���� ����)
+    // 2. Turn Signal Click Sound ("Tick- Tick-")
     // =========================================================
-    // ������(LED)�� ������ ����(Rising Edge)���� ª�� "ƽ" �Ҹ��� ��
     reg prev_turn_signal;
     reg [19:0] click_cnt;
     reg click_sound_active;
@@ -70,29 +67,27 @@ module Sound_Unit (
         end else begin
             prev_turn_signal <= turn_signal_on;
             
-            // LED�� �����ִٰ� ������ ���� (0->1) �Ǵ� �����ִٰ� ������ ���� (1->0) ����
-            // ���� �����̴� ���� �� �ѹ�, ������ �� �ѹ� �Ҹ��� ��
+            // Trigger sound on both edges (ON->OFF, OFF->ON)
             if (turn_signal_on != prev_turn_signal) begin
-                click_cnt <= 150_000; // �Ҹ� ���� �ð� (�� 3ms) - ���� ª�� "ƽ"
+                click_cnt <= 150_000; // 3ms duration
                 click_sound_active <= 1;
             end
             
             if (click_cnt > 0) begin
                 click_cnt <= click_cnt - 1;
-                click_sound_active <= 1; // ī��Ʈ ���� ���� �Ҹ� ��
+                click_sound_active <= 1;
             end else begin
                 click_sound_active <= 0;
             end
         end
     end
     
-    // "ƽ" �Ҹ��� �� (���ļ�) ����
     reg [15:0] click_tone_cnt;
     reg click_wave;
+    // 2kHz Tone for Click (Sharper sound)
     always @(posedge clk) begin
         if (click_sound_active) begin
-            // �� 1kHz ������ "ƽ"
-            if (click_tone_cnt >= 25000) begin 
+            if (click_tone_cnt >= 12500) begin 
                 click_tone_cnt <= 0;
                 click_wave <= ~click_wave;
             end else click_tone_cnt <= click_tone_cnt + 1;
@@ -103,14 +98,14 @@ module Sound_Unit (
     end
 
     // =========================================================
-    // 3. ���� �Ҹ� (�ε巯�� ���� ��)
+    // 3. Horn Sound ("Honk!")
     // =========================================================
     reg [19:0] horn_cnt;
     reg horn_wave;
     
     always @(posedge clk) begin
         if (is_horn) begin
-            // �� 400Hz (����)
+            // 400Hz Low Tone
             if (horn_cnt >= 62500) begin
                 horn_cnt <= 0;
                 horn_wave <= ~horn_wave;
@@ -122,18 +117,20 @@ module Sound_Unit (
     end
 
     // =========================================================
-    // 4. ���� ��� �ͽ� (�켱���� ����)
+    // 4. Sound Priority Mux
     // =========================================================
     always @(*) begin
         if (is_horn) begin
-            piezo_out = horn_wave; // 1����: ����
+            piezo_out = horn_wave; // Priority 1: Horn
         end 
         else if (click_sound_active) begin
-            piezo_out = click_wave; // 2����: ������/���� Ŭ����
+            piezo_out = click_wave; // Priority 2: Turn Signal Click
         end 
+        else if (reverse_beep_en) begin
+            piezo_out = reverse_wave; // Priority 3: Reverse Beep
+        end
         else begin
-            if (engine_on && accel_active) piezo_out = engine_sound_bit; // 3����: ������ (�������)
-            else piezo_out = 1'b0;
+            piezo_out = 1'b0; // Silence (Engine sound removed)
         end
     end
 
