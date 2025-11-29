@@ -86,11 +86,19 @@ module Vehicle_Logic (
 
     // 3. OBD 데이터
     reg [1:0] fuel_timer; // 연료 소비 속도 조절용
+    reg [3:0] odo_timer;  // Odometer Update Timer (10 seconds)
 
     always @(posedge clk or posedge rst) begin
-        if (rst) begin fuel<=100; temp<=40; odometer_raw<=0; fuel_timer<=0; end
+        if (rst) begin fuel<=100; temp<=40; odometer_raw<=0; fuel_timer<=0; odo_timer<=0; end
         else if (engine_on && tick_1sec) begin
-            odometer_raw <= odometer_raw + speed;
+            // Odometer Logic: Update every 10 seconds
+            odo_timer <= odo_timer + 1;
+            if (odo_timer >= 10) begin
+                odo_timer <= 0;
+                // Accumulate Speed (Simple approximation for simulation)
+                // If speed is 22km/h, adding 22 every 10s makes ODO grow visibly.
+                odometer_raw <= odometer_raw + speed; 
+            end
             
             // [개선 3] 연료 소비 속도 조절 (3초에 1씩 감소)
             if (speed > 0 || rpm > 1000) begin

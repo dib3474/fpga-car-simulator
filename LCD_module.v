@@ -36,7 +36,7 @@ module LCD_Module (
             end
             // Priority 2: Rising Edge of engine_on -> Start Timer
             else if (engine_on && !prev_engine_on) begin
-                engine_start_timer <= 50_000_000; // 1 second (Reduced for Simulation)
+                engine_start_timer <= 150_000_000; // 3 seconds at 50MHz
                 show_engine_on_msg <= 1;
             end
             // Priority 3: Timer Countdown
