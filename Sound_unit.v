@@ -53,17 +53,19 @@ module Sound_Unit (
     end
 
     // =========================================================
-    // 2. Turn Signal Click Sound ("Tick- Tick-")
+    // 2. Turn Signal Click Sound ("Tick- Tock-")
     // =========================================================
     reg prev_turn_signal;
     reg [19:0] click_cnt;
     reg click_sound_active;
+    reg is_tick; // 1=Tick (High), 0=Tock (Low)
     
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             prev_turn_signal <= 0;
             click_cnt <= 0;
             click_sound_active <= 0;
+            is_tick <= 0;
         end else begin
             prev_turn_signal <= turn_signal_on;
             
@@ -71,6 +73,7 @@ module Sound_Unit (
             if (turn_signal_on != prev_turn_signal) begin
                 click_cnt <= 150_000; // 3ms duration
                 click_sound_active <= 1;
+                is_tick <= turn_signal_on; // Rising=Tick, Falling=Tock
             end
             
             if (click_cnt > 0) begin
@@ -84,10 +87,11 @@ module Sound_Unit (
     
     reg [15:0] click_tone_cnt;
     reg click_wave;
-    // 2kHz Tone for Click (Sharper sound)
+    // Two-tone for Click (Tick: 2kHz, Tock: 1.6kHz)
     always @(posedge clk) begin
         if (click_sound_active) begin
-            if (click_tone_cnt >= 12500) begin 
+            // 2kHz -> 12500, 1.6kHz -> 15625
+            if (click_tone_cnt >= (is_tick ? 12500 : 15625)) begin 
                 click_tone_cnt <= 0;
                 click_wave <= ~click_wave;
             end else click_tone_cnt <= click_tone_cnt + 1;
