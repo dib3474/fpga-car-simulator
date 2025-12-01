@@ -39,16 +39,16 @@ module SPI_ADC_Controller (
         end
     end
 
-    // FSM
-    reg [2:0] state;
+    // FSM for AD7908 (8-bit ADC)
+    reg [1:0] state;
     reg [4:0] bit_cnt;
-    reg channel_addr; // 1 bit for MCP3202 (0:CH0, 1:CH1)
-    reg [11:0] shift_in; // 12-bit Data
+    reg [2:0] channel_addr; // Address to send
+    reg [2:0] prev_addr;    // Address sent in previous frame
+    reg [15:0] shift_in;    // 16-bit Data (Full Frame)
     
     localparam S_IDLE = 0;
-    localparam S_START = 1;
-    localparam S_TRANS = 2;
-    localparam S_DONE = 3;
+    localparam S_TRANS = 1;
+    localparam S_DONE = 2;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -57,6 +57,7 @@ module SPI_ADC_Controller (
             state <= S_IDLE;
             bit_cnt <= 0;
             channel_addr <= 0; 
+            prev_addr <= 0;
             adc_accel <= 0;
             adc_cds <= 0;
             shift_in <= 0;
@@ -65,57 +66,79 @@ module SPI_ADC_Controller (
                 S_IDLE: begin
                     spi_cs_n <= 1;
                     if (sck_enable_fall) begin 
-                        state <= S_START;
+                        state <= S_TRANS;
+                        spi_cs_n <= 0; // CS Low to start
+                        bit_cnt <= 0;
                     end
                 end
                 
-                S_START: begin
-                    spi_cs_n <= 0; 
-                    bit_cnt <= 0;
-                    spi_mosi <= 1; // Start Bit (MCP3202)
-                    state <= S_TRANS;
-                end
-
                 S_TRANS: begin
-                    // Read MISO on Rising Edge
-                    if (sck_enable_rise) begin
-                        // MCP3202: Null bit at Cycle 5, Data B11..B0 at Cycle 6..17
-                        if (bit_cnt >= 5) begin
-                            shift_in <= {shift_in[10:0], spi_miso};
+                    // Write MOSI on Falling Edge
+                    if (sck_enable_fall) begin
+                        // AD7908 Control Word (12 bits + 4 trailing zeros)
+                        // Bit 11: WRITE (1)
+                        // Bit 10: SEQ (0)
+                        // Bit 9:  Don't Care (0)
+                        // Bit 8:  ADD2
+                        // Bit 7:  ADD1
+                        // Bit 6:  ADD0
+                        // Bit 5:  PM1 (1)
+                        // Bit 4:  PM0 (1)
+                        // Bit 3:  SHADOW (0)
+                        // Bit 2:  WEAK/TRI (0)
+                        // Bit 1:  RANGE (1) - 0 to Vref
+                        // Bit 0:  CODING (1) - Binary
+                        
+                        case (bit_cnt)
+                            0: spi_mosi <= 1; // WRITE
+                            1: spi_mosi <= 0; // SEQ
+                            2: spi_mosi <= 0; // Don't Care
+                            3: spi_mosi <= channel_addr[2]; // ADD2
+                            4: spi_mosi <= channel_addr[1]; // ADD1
+                            5: spi_mosi <= channel_addr[0]; // ADD0
+                            6: spi_mosi <= 1; // PM1
+                            7: spi_mosi <= 1; // PM0
+                            8: spi_mosi <= 0; // SHADOW
+                            9: spi_mosi <= 0; // WEAK
+                            10: spi_mosi <= 1; // RANGE
+                            11: spi_mosi <= 1; // CODING
+                            default: spi_mosi <= 0;
+                        endcase
+                        
+                        bit_cnt <= bit_cnt + 1;
+                        if (bit_cnt == 16) begin
+                            state <= S_DONE;
+                            spi_cs_n <= 1;
                         end
                     end
                     
-                    // Write MOSI on Falling Edge
-                    if (sck_enable_fall) begin
-                        bit_cnt <= bit_cnt + 1;
-                        if (bit_cnt == 17) begin // Total 17 Cycles
-                            state <= S_DONE;
-                            spi_cs_n <= 1;
-                        end else begin
-                            // MCP3202 Control Bits
-                            // Cycle 1: Start (Sent in S_START)
-                            // Cycle 2: SGL/DIFF (1)
-                            // Cycle 3: ODD/SIGN (Channel)
-                            // Cycle 4: MSBF (1)
-                            
-                            case (bit_cnt)
-                                0: spi_mosi <= 1; // SGL (for Cycle 2)
-                                1: spi_mosi <= channel_addr; // ODD (for Cycle 3)
-                                2: spi_mosi <= 1; // MSBF (for Cycle 4)
-                                default: spi_mosi <= 0;
-                            endcase
+                    // Read MISO on Rising Edge
+                    if (sck_enable_rise) begin
+                        if (bit_cnt >= 1 && bit_cnt <= 16) begin
+                             shift_in <= {shift_in[14:0], spi_miso};
                         end
                     end
                 end
 
                 S_DONE: begin
-                    // MCP3202 is NOT pipelined. Data corresponds to the command just sent.
-                    // [Correction] Based on symptoms: CH0 is CDS, CH1 is Accel.
-                    if (channel_addr == 0) adc_cds <= shift_in[11:4];   // CH0 -> CDS
-                    else adc_accel <= shift_in[11:4];                   // CH1 -> Accel
+                    // AD7908 Data Format:
+                    // 2 Leading Zeros + 3 Address Bits + 8 Data Bits + Trailing Zeros
+                    // shift_in[15:0] structure:
+                    // [15:14]: 00
+                    // [13:11]: Address
+                    // [10:3]:  Data (8-bit)
+                    // [2:0]:   Trailing
                     
-                    // Toggle Channel
-                    channel_addr <= ~channel_addr;
+                    if (prev_addr == 0) adc_cds <= shift_in[10:3];        // CH0 -> CdS
+                    else if (prev_addr == 1) adc_accel <= shift_in[10:3]; // CH1 -> Accel
+                    
+                    // Update Pipeline
+                    prev_addr <= channel_addr;
+                    
+                    // Toggle Channel for next read (0 -> 1 -> 0)
+                    if (channel_addr == 0) channel_addr <= 1;
+                    else channel_addr <= 0;
+                    
                     state <= S_IDLE;
                 end
             endcase
