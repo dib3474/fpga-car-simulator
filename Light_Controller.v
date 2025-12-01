@@ -21,10 +21,18 @@ module Light_Controller (
     output [7:0] led_port
 );
 
-    // 1. 오토라이트 판단
-    // [수정] 현재 밝은 곳에서도 켜져 있음 -> 밝을 때 값이 높음 (High Value = Bright)
-    // 따라서 어두울 때 켜지려면 값이 낮아져야 함 (< Threshold)
-    wire is_dark = (cds_val < 100); 
+    // 1. 오토라이트 판단 (히스테리시스 적용)
+    // [수정] 센서 감도 조절: 완전히 가려도 깜빡이는 현상 해결
+    // 150 미만이면 켜짐 (기존 100보다 여유 있게), 170 초과면 꺼짐 (채터링 방지)
+    reg is_dark;
+    always @(posedge clk or posedge rst) begin
+        if (rst) is_dark <= 0;
+        else begin
+            if (cds_val < 150) is_dark <= 1;      // 어두움 (ON)
+            else if (cds_val > 170) is_dark <= 0; // 밝음 (OFF)
+        end
+    end
+
     wire head_on = sw_headlight || is_dark; // 전조등 ON 조건
     
     // 2. 전조등 제어 (White Color: R+G+B 모두 ON)

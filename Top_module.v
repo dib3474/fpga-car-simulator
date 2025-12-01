@@ -62,14 +62,27 @@ module Car_Simulator_Top (
             prev_key_0 <= 0;
         end else if (tick_spd) begin 
             prev_key_0 <= KEY_0;
+            
+            // [Feature] Engine Stalls if Fuel is Empty
+            if (power_state == STATE_RUN && fuel_w == 0) begin
+                power_state <= STATE_ACC; 
+            end
+            
             if (KEY_0 && !prev_key_0) begin
                 case (power_state)
                     STATE_OFF: begin
-                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN;
+                        if (KEY_STAR && gear_reg == 4'd3) begin
+                            // Only start if fuel > 0
+                            if (fuel_w > 0) power_state <= STATE_RUN;
+                            else power_state <= STATE_ACC;
+                        end
                         else power_state <= STATE_ACC; 
                     end
                     STATE_ACC: begin
-                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN;
+                        if (KEY_STAR && gear_reg == 4'd3) begin
+                            // Only start if fuel > 0
+                            if (fuel_w > 0) power_state <= STATE_RUN;
+                        end
                         else power_state <= STATE_OFF; 
                     end
                     STATE_RUN: begin
@@ -87,7 +100,10 @@ module Car_Simulator_Top (
         if (global_safe_rst) gear_reg <= 4'd3;
         else begin
             if (KEY_3) gear_reg <= 4'd3;      // P
-            else if (KEY_6) gear_reg <= 4'd6; // R
+            else if (KEY_6) begin             // R (Reverse)
+                // [Safety] Only allow shifting to Reverse when speed is 0
+                if (spd_w == 0) gear_reg <= 4'd6; 
+            end
             else if (KEY_9) gear_reg <= 4'd9; // N
             else if (KEY_SHARP) gear_reg <= 4'd12; // D
         end

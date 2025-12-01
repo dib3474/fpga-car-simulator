@@ -41,11 +41,26 @@ module Vehicle_Logic (
 
             // C. 속도 갱신
             if (is_brake_hard) begin // 급브레이크 (물리 무시하고 강제 감속)
-                if(speed >= 8) speed <= speed - 8; else speed <= 0;
+                // [수정] 속도에 따른 브레이크 성능 변화 (고속에서는 밀림 현상 구현)
+                if (speed > 150) begin
+                    if(speed >= 2) speed <= speed - 2; else speed <= 0; // 고속: 잘 안 멈춤
+                end else if (speed > 80) begin
+                    if(speed >= 4) speed <= speed - 4; else speed <= 0; // 중속
+                end else begin
+                    if(speed >= 8) speed <= speed - 8; else speed <= 0; // 저속: 팍 멈춤
+                end
+                
                 if(speed > 50) ess_trigger <= 1;
             end 
             else if (is_brake_normal) begin // 일반브레이크
-                if(speed >= 3) speed <= speed - 3; else speed <= 0;
+                // [수정] 속도에 따른 브레이크 성능 변화
+                if (speed > 150) begin
+                    if(speed >= 1) speed <= speed - 1; else speed <= 0; // 고속: 아주 조금 감속
+                end else if (speed > 80) begin
+                    if(speed >= 2) speed <= speed - 2; else speed <= 0; // 중속
+                end else begin
+                    if(speed >= 3) speed <= speed - 3; else speed <= 0; // 저속: 정상 감속
+                end
                 ess_trigger <= 0;
             end 
             else begin // 악셀 밟거나 떼는 중 (물리 적용)
@@ -57,13 +72,13 @@ module Vehicle_Logic (
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 속도 유지 (가속 안함)
                     end else if (speed < 250) begin
-                        // [수정] 힘의 차이에 따라 가속도 차등 적용 (드라마틱한 가속감)
-                        if ((power - resistance) > 50) 
-                            speed <= (speed + 3 > 250) ? 250 : speed + 3;
-                        else if ((power - resistance) > 20) 
-                            speed <= (speed + 2 > 250) ? 250 : speed + 2;
-                        else 
-                            speed <= speed + 1;
+                        // [수정] 가속도 대폭 하향 (제로백 3초 -> 현실적인 가속)
+                        // 기존 +3, +2 로직 제거하고 +1로 통일하되, 
+                        // 가속 타이밍을 조절하기 위해 내부 카운터나 확률을 쓸 수도 있지만,
+                        // 여기서는 단순히 +1만 적용하여 부드럽게 가속.
+                        // (Tick이 0.05초이므로 +1씩이면 0->100까지 5초 소요. 저항 때문에 더 걸림)
+                        
+                        speed <= speed + 1; 
                     end
                 end 
                 // 힘이 부족하면 감속 (자연 감속)
@@ -74,19 +89,19 @@ module Vehicle_Logic (
         end
     end
 
-    // 2. RPM 계산 (자동 변속 시뮬레이션)
+    // 2. RPM 계산 (자동 변속 시뮬레이션 - 6단 기어비 최적화)
     always @(*) begin
         if (!engine_on) rpm = 0;
         else if (current_gear == 4'd3 || current_gear == 4'd9) // P, N
-            rpm = IDLE_RPM + (effective_accel * 20); // 공회전 (불감대 적용된 값 사용)
+            rpm = IDLE_RPM + (effective_accel * 20); // 공회전
         else begin // D, R
-            // 가상의 기어비 적용
-            if (speed < 30)       rpm = IDLE_RPM + (speed * 90);       // 1단
-            else if (speed < 60)  rpm = 1500 + ((speed - 30) * 70);    // 2단
-            else if (speed < 90)  rpm = 1500 + ((speed - 60) * 50);    // 3단
-            else if (speed < 130) rpm = 1600 + ((speed - 90) * 40);    // 4단
-            else if (speed < 180) rpm = 1700 + ((speed - 130) * 30);   // 5단
-            else                  rpm = 1800 + ((speed - 180) * 20);   // 6단
+            // [수정] 기어비 구간 확장 (0~255 속도에 맞춰 6단 분배)
+            if (speed < 40)       rpm = IDLE_RPM + (speed * 100);       // 1단 (0~40)
+            else if (speed < 80)  rpm = 1500 + ((speed - 40) * 80);     // 2단 (40~80)
+            else if (speed < 120) rpm = 1500 + ((speed - 80) * 60);     // 3단 (80~120)
+            else if (speed < 160) rpm = 1600 + ((speed - 120) * 50);    // 4단 (120~160)
+            else if (speed < 200) rpm = 1700 + ((speed - 160) * 40);    // 5단 (160~200)
+            else                  rpm = 1800 + ((speed - 200) * 30);    // 6단 (200~)
             
             if (rpm > 8000) rpm = 8000;
         end
