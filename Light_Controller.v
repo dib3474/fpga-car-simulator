@@ -22,9 +22,9 @@ module Light_Controller (
 );
 
     // 1. 오토라이트 판단
-    // [수정] 조도 센서 값 분석 결과: 밝을 때 낮은 값(~45), 어두울 때 높은 값으로 추정됨.
-    // 따라서 임계값을 150 이상으로 설정하여 어두울 때만 켜지도록 변경.
-    wire is_dark = (cds_val > 150); 
+    // [수정] 현재 밝은 곳에서도 켜져 있음 -> 밝을 때 값이 높음 (High Value = Bright)
+    // 따라서 어두울 때 켜지려면 값이 낮아져야 함 (< Threshold)
+    wire is_dark = (cds_val < 100); 
     wire head_on = sw_headlight || is_dark; // 전조등 ON 조건
     
     // 2. 전조등 제어 (White Color: R+G+B 모두 ON)

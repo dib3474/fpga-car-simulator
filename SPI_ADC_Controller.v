@@ -74,22 +74,17 @@ module SPI_ADC_Controller (
                 end
                 
                 S_TRANS: begin
-                    // Write MOSI on Falling Edge
-                    if (sck_enable_fall) begin
-                        // AD7908 Control Word (12 bits + 4 trailing zeros)
-                        // Bit 11: WRITE (1)
-                        // Bit 10: SEQ (0)
-                        // Bit 9:  Don't Care (0)
-                        // Bit 8:  ADD2
-                        // Bit 7:  ADD1
-                        // Bit 6:  ADD0
-                        // Bit 5:  PM1 (1)
-                        // Bit 4:  PM0 (1)
-                        // Bit 3:  SHADOW (0)
-                        // Bit 2:  WEAK/TRI (0)
-                        // Bit 1:  RANGE (1) - 0 to Vref
-                        // Bit 0:  CODING (1) - Binary
-                        
+                    // [Timing Fix] AD7908 samples on Falling Edge.
+                    // Master must update MOSI on Rising Edge to ensure setup time.
+                    // Master reads MISO on Rising Edge (stable after Slave's Falling Edge update).
+                    
+                    if (sck_enable_rise) begin
+                        // 1. Read MISO
+                        if (bit_cnt >= 1 && bit_cnt <= 16) begin
+                             shift_in <= {shift_in[14:0], spi_miso};
+                        end
+
+                        // 2. Write MOSI
                         case (bit_cnt)
                             0: spi_mosi <= 1; // WRITE
                             1: spi_mosi <= 0; // SEQ
@@ -106,30 +101,27 @@ module SPI_ADC_Controller (
                             default: spi_mosi <= 0;
                         endcase
                         
+                        // 3. Increment & Check Done
                         bit_cnt <= bit_cnt + 1;
                         if (bit_cnt == 16) begin
                             state <= S_DONE;
                             spi_cs_n <= 1;
                         end
                     end
-                    
-                    // Read MISO on Rising Edge
-                    if (sck_enable_rise) begin
-                        if (bit_cnt >= 1 && bit_cnt <= 16) begin
-                             shift_in <= {shift_in[14:0], spi_miso};
-                        end
-                    end
                 end
 
                 S_DONE: begin
-                    // AD7908 Data Format Adjustment
-                    // Symptom: Max value is around 84 (should be 255).
-                    // Cause: Data bits are likely shifted by 2 positions due to timing delays.
-                    // Fix: Read from [8:1] instead of [10:3] to multiply value by 4.
+                    // AD7908 Data Format:
+                    // [15:14]: 00
+                    // [13:11]: Address
+                    // [10:3]:  Data (8-bit)
+                    // [2:0]:   Trailing
                     
-                    // [User Request] CH0 -> CDS, CH1 -> Accel
-                    if (prev_addr == 0) adc_cds <= shift_in[8:1];        // CH0 -> CdS
-                    else if (prev_addr == 1) adc_accel <= shift_in[8:1]; // CH1 -> Accel
+                    // [Fix] Reverting bit shift. The "low max speed" was likely due to wrong channel mapping.
+                    // Now that mapping is correct (CH1=Accel), we use standard bits [10:3].
+                    
+                    if (prev_addr == 0) adc_cds <= shift_in[10:3];        // CH0 -> CdS
+                    else if (prev_addr == 1) adc_accel <= shift_in[10:3]; // CH1 -> Accel
                     
                     // Update Pipeline
                     prev_addr <= channel_addr;
