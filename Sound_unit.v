@@ -2,95 +2,96 @@ module Sound_Unit (
     input clk,              // 50MHz System Clock
     input rst,              // Reset
     
-    input [13:0] rpm,       // RPM (엔진음 톤 결정)
-    input ess_active,       // ESS (비상등)
-    input is_horn,          // 경적
-    input turn_signal_on,   // 깜빡이 켜짐 여부 (LED 상태)
+    input [13:0] rpm,       // RPM (Unused for sound now)
+    input ess_active,       // ESS (Unused)
+    input is_horn,          // Horn
+    input is_reverse,       // Reverse Gear (R)
+    input turn_signal_on,   // Turn Signal Blink State
+    input engine_on,        // Engine State
+    input accel_active,     // Accel State (Unused)
     
-    output reg piezo_out    // 부저 출력
+    output reg piezo_out    // Piezo Output
 );
 
     // =========================================================
-    // 1. 엔진음 생성을 위한 LFSR (Linear Feedback Shift Register)
-    // 백색소음(White Noise)을 만들어 "쉬이익" 하는 소리를 냅니다.
+    // 1. Reverse Warning Sound ("Beep- Beep-")
     // =========================================================
-    reg [15:0] lfsr;
-    wire lfsr_feedback;
-    assign lfsr_feedback = lfsr[0] ^ lfsr[2] ^ lfsr[3] ^ lfsr[5];
-
-    reg [19:0] engine_cnt;
-    reg [19:0] engine_period;
-    reg engine_sound_bit;
-
-    // RPM에 따른 엔진음 주기 계산 (RPM이 높을수록 주기가 짧아짐 = 고음)
-    // 소리를 부드럽게 하기 위해 주파수 대역을 낮춤
-    always @(*) begin
-        if (rpm < 500) engine_period = 0; // 시동 꺼짐 혹은 극저회전
-        else engine_period = 150000 - (rpm * 10); // 기본값에서 RPM만큼 뺌
-    end
-
-    // 엔진음 생성 로직
+    reg [25:0] reverse_cnt; // Counter for 1Hz cycle (0.5s ON, 0.5s OFF)
+    reg reverse_beep_en;    // Enable beep during ON time
+    
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            lfsr <= 16'hACE1; // 초기 시드값 (0이면 안됨)
-            engine_cnt <= 0;
-            engine_sound_bit <= 0;
+            reverse_cnt <= 0;
+            reverse_beep_en <= 0;
         end else begin
-            if (engine_period != 0) begin
-                if (engine_cnt >= engine_period) begin
-                    engine_cnt <= 0;
-                    // LFSR 시프트 (랜덤값 생성)
-                    lfsr <= {lfsr_feedback, lfsr[15:1]};
-                    // 랜덤 비트를 출력하여 "치직" 거리는 소리 생성
-                    engine_sound_bit <= lfsr[0]; 
-                end else begin
-                    engine_cnt <= engine_cnt + 1;
-                end
+            if (is_reverse && engine_on) begin
+                if (reverse_cnt >= 50_000_000) reverse_cnt <= 0; // 1 second period
+                else reverse_cnt <= reverse_cnt + 1;
+                
+                // Beep for first 0.5 sec
+                reverse_beep_en <= (reverse_cnt < 25_000_000);
             end else begin
-                engine_sound_bit <= 0;
+                reverse_cnt <= 0;
+                reverse_beep_en <= 0;
             end
         end
     end
 
+    reg [15:0] reverse_tone_cnt;
+    reg reverse_wave;
+    // 1kHz Tone for Reverse
+    always @(posedge clk) begin
+        if (reverse_beep_en) begin
+            if (reverse_tone_cnt >= 25000) begin 
+                reverse_tone_cnt <= 0;
+                reverse_wave <= ~reverse_wave;
+            end else reverse_tone_cnt <= reverse_tone_cnt + 1;
+        end else begin
+            reverse_wave <= 0;
+            reverse_tone_cnt <= 0;
+        end
+    end
+
     // =========================================================
-    // 2. 깜빡이 소리 ("똑-깍" 릴레이 사운드 구현)
+    // 2. Turn Signal Click Sound ("Tick- Tock-")
     // =========================================================
-    // 깜빡이(LED)가 켜지는 순간(Rising Edge)에만 짧게 "틱" 소리를 냄
     reg prev_turn_signal;
     reg [19:0] click_cnt;
     reg click_sound_active;
+    reg is_tick; // 1=Tick (High), 0=Tock (Low)
     
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             prev_turn_signal <= 0;
             click_cnt <= 0;
             click_sound_active <= 0;
+            is_tick <= 0;
         end else begin
             prev_turn_signal <= turn_signal_on;
             
-            // LED가 꺼져있다가 켜지는 순간 (0->1) 또는 켜져있다가 꺼지는 순간 (1->0) 감지
-            // 실제 릴레이는 붙을 때 한번, 떨어질 때 한번 소리가 남
+            // Trigger sound on both edges (ON->OFF, OFF->ON)
             if (turn_signal_on != prev_turn_signal) begin
-                click_cnt <= 150_000; // 소리 지속 시간 (약 3ms) - 아주 짧게 "틱"
+                click_cnt <= 150_000; // 3ms duration
                 click_sound_active <= 1;
+                is_tick <= turn_signal_on; // Rising=Tick, Falling=Tock
             end
             
             if (click_cnt > 0) begin
                 click_cnt <= click_cnt - 1;
-                click_sound_active <= 1; // 카운트 도는 동안 소리 냄
+                click_sound_active <= 1;
             end else begin
                 click_sound_active <= 0;
             end
         end
     end
     
-    // "틱" 소리의 톤 (주파수) 생성
     reg [15:0] click_tone_cnt;
     reg click_wave;
+    // Two-tone for Click (Tick: 2kHz, Tock: 1.6kHz)
     always @(posedge clk) begin
         if (click_sound_active) begin
-            // 약 1kHz 톤으로 "틱"
-            if (click_tone_cnt >= 25000) begin 
+            // 2kHz -> 12500, 1.6kHz -> 15625
+            if (click_tone_cnt >= (is_tick ? 12500 : 15625)) begin 
                 click_tone_cnt <= 0;
                 click_wave <= ~click_wave;
             end else click_tone_cnt <= click_tone_cnt + 1;
@@ -101,14 +102,14 @@ module Sound_Unit (
     end
 
     // =========================================================
-    // 3. 경적 소리 (부드러운 저음 톤)
+    // 3. Horn Sound ("Honk!")
     // =========================================================
     reg [19:0] horn_cnt;
     reg horn_wave;
     
     always @(posedge clk) begin
         if (is_horn) begin
-            // 약 400Hz (저음)
+            // 400Hz Low Tone
             if (horn_cnt >= 62500) begin
                 horn_cnt <= 0;
                 horn_wave <= ~horn_wave;
@@ -120,17 +121,20 @@ module Sound_Unit (
     end
 
     // =========================================================
-    // 4. 최종 출력 믹싱 (우선순위 결정)
+    // 4. Sound Priority Mux
     // =========================================================
     always @(*) begin
         if (is_horn) begin
-            piezo_out = horn_wave; // 1순위: 경적
+            piezo_out = horn_wave; // Priority 1: Horn
         end 
         else if (click_sound_active) begin
-            piezo_out = click_wave; // 2순위: 깜빡이/비상등 클릭음
+            piezo_out = click_wave; // Priority 2: Turn Signal Click
         end 
+        else if (reverse_beep_en) begin
+            piezo_out = reverse_wave; // Priority 3: Reverse Beep
+        end
         else begin
-            piezo_out = engine_sound_bit; // 3순위: 엔진음 (백색소음)
+            piezo_out = 1'b0; // Silence (Engine sound removed)
         end
     end
 
