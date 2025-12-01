@@ -106,8 +106,10 @@ module SPI_ADC_Controller (
 
                 S_DONE: begin
                     // Pipeline: Data received is for the PREVIOUS channel.
-                    if (channel_addr == 1) adc_accel <= shift_in[11:4]; 
-                    else if (channel_addr == 0) adc_cds <= shift_in[11:4];
+                    // [Swap Fix] If CH0=CDS, CH1=Accel (or correcting pipeline mismatch)
+                    // If we just sent CH1 (channel_addr=1), we received CH0 data.
+                    if (channel_addr == 1) adc_cds <= shift_in[11:4]; // Received CH0 -> CDS
+                    else if (channel_addr == 0) adc_accel <= shift_in[11:4]; // Received CH1 -> Accel
                     
                     // Toggle Channel for next frame
                     if (channel_addr == 0) channel_addr <= 1;
