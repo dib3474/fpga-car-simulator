@@ -117,8 +117,11 @@ module SPI_ADC_Controller (
                 S_DONE: begin
                     // Update Values
                     // shift_in contains the 12-bit result
-                    if (channel_addr == 0) adc_cds <= shift_in[11:4];   // CH0 -> CDS
-                    else adc_accel <= shift_in[11:4];                   // CH1 -> Accel
+                    // [Standard Mapping for HBE-Combo II]
+                    // CH0 (Addr 0): Potentiometer (Accel)
+                    // CH1 (Addr 1): CDS Sensor (Light)
+                    if (channel_addr == 0) adc_accel <= shift_in[11:4]; // CH0 -> Accel
+                    else adc_cds <= shift_in[11:4];                     // CH1 -> CDS
                     
                     // Toggle Channel for next read
                     if (channel_addr == 0) channel_addr <= 1;
