@@ -110,8 +110,9 @@ module SPI_ADC_Controller (
 
                 S_DONE: begin
                     // MCP3202 is NOT pipelined. Data corresponds to the command just sent.
-                    if (channel_addr == 0) adc_accel <= shift_in[11:4]; // CH0 -> Accel
-                    else adc_cds <= shift_in[11:4]; // CH1 -> CDS
+                    // [Correction] Based on symptoms: CH0 is CDS, CH1 is Accel.
+                    if (channel_addr == 0) adc_cds <= shift_in[11:4];   // CH0 -> CDS
+                    else adc_accel <= shift_in[11:4];                   // CH1 -> Accel
                     
                     // Toggle Channel
                     channel_addr <= ~channel_addr;
