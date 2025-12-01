@@ -85,21 +85,19 @@ module SPI_ADC_Controller (
                     // Write MOSI on Falling Edge
                     if (sck_enable_fall) begin
                         bit_cnt <= bit_cnt + 1;
-                        if (bit_cnt == 16) begin // [수정] 16번째 비트까지 다 읽고 종료 (기존 15 -> 16)
+                        if (bit_cnt == 16) begin 
                             state <= S_DONE;
+                            spi_cs_n <= 1; // [Fix] Raise CS immediately after 16th cycle
                         end else begin
                             // Send Address at Bit 13, 12, 11 (Cycle 2, 3, 4)
-                            // bit_cnt becomes 1, 2, 3...
-                            // We want to set MOSI for the NEXT rising edge.
-                            // bit_cnt 0 (Fall 1) -> Set Bit 14 (X)
-                            // bit_cnt 1 (Fall 2) -> Set Bit 13 (ADD2)
-                            // bit_cnt 2 (Fall 3) -> Set Bit 12 (ADD1)
-                            // bit_cnt 3 (Fall 4) -> Set Bit 11 (ADD0)
+                            // bit_cnt 1 (Fall 1) -> Set Bit 13 (ADD2) for Cycle 3 Rise
+                            // bit_cnt 2 (Fall 2) -> Set Bit 12 (ADD1) for Cycle 4 Rise
+                            // bit_cnt 3 (Fall 3) -> Set Bit 11 (ADD0) for Cycle 5 Rise
                             
                             case (bit_cnt + 1)
-                                3: spi_mosi <= channel_addr[2]; // Bit 13 (ADD2)
-                                4: spi_mosi <= channel_addr[1]; // Bit 12 (ADD1)
-                                5: spi_mosi <= channel_addr[0]; // Bit 11 (ADD0)
+                                2: spi_mosi <= channel_addr[2]; // Bit 13 (ADD2)
+                                3: spi_mosi <= channel_addr[1]; // Bit 12 (ADD1)
+                                4: spi_mosi <= channel_addr[0]; // Bit 11 (ADD0)
                                 default: spi_mosi <= 0;
                             endcase
                         end
@@ -107,20 +105,15 @@ module SPI_ADC_Controller (
                 end
 
                 S_DONE: begin
-                    if (sck_enable_fall) begin
-                        spi_cs_n <= 1;
-                        
-                        // Pipeline: Data received is for the PREVIOUS channel.
-                        // If we just sent CH1 request (channel_addr=1), we received CH0 data.
-                        if (channel_addr == 1) adc_accel <= shift_in[11:4]; // Upper 8 bits
-                        else if (channel_addr == 0) adc_cds <= shift_in[11:4];
-                        
-                        // Toggle Channel for next frame
-                        if (channel_addr == 0) channel_addr <= 1;
-                        else channel_addr <= 0;
-                        
-                        state <= S_IDLE;
-                    end
+                    // Pipeline: Data received is for the PREVIOUS channel.
+                    if (channel_addr == 1) adc_accel <= shift_in[11:4]; 
+                    else if (channel_addr == 0) adc_cds <= shift_in[11:4];
+                    
+                    // Toggle Channel for next frame
+                    if (channel_addr == 0) channel_addr <= 1;
+                    else channel_addr <= 0;
+                    
+                    state <= S_IDLE;
                 end
             endcase
         end
