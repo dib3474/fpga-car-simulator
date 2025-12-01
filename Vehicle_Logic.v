@@ -19,9 +19,10 @@ module Vehicle_Logic (
     reg [9:0] power;      // 엔진 힘
     reg [9:0] resistance; // 공기/바닥 저항
     
-    // [개선 1] 불감대(Dead Zone) 적용: 노이즈로 인한 미세 떨림 방지
+    // [개선 1] 불감대(Dead Zone) 적용: 노이즈 및 오프셋 보정
+    // 센서 초기값이 약 45 정도로 들어오는 현상(속도 40km/h 고정)을 잡기 위해 불감대를 50으로 상향하고 오프셋 제거
     wire [7:0] effective_accel;
-    assign effective_accel = (adc_accel > 10) ? adc_accel : 8'd0;
+    assign effective_accel = (adc_accel > 50) ? (adc_accel - 50) : 8'd0;
 
     // 1. 물리 엔진 (가속도 기반)
     always @(posedge clk or posedge rst) begin
@@ -35,7 +36,8 @@ module Vehicle_Logic (
             else power = 0; // P, N: 동력 없음
 
             // B. 저항(Resistance) 계산: 속도가 빠를수록 저항이 커짐 (자연 감속)
-            resistance = speed / 4 + 2; // 기본 마찰 2 + 속도 비례 저항
+            // [수정] 저항을 높여서 적은 악셀량으로 과도한 속도가 나오지 않게 함 (1:1 매핑에 가깝게)
+            resistance = speed + 5; 
 
             // C. 속도 갱신
             if (is_brake_hard) begin // 급브레이크 (물리 무시하고 강제 감속)
@@ -55,7 +57,13 @@ module Vehicle_Logic (
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 속도 유지 (가속 안함)
                     end else if (speed < 250) begin
-                        speed <= speed + 1; // 천천히 가속
+                        // [수정] 힘의 차이에 따라 가속도 차등 적용 (드라마틱한 가속감)
+                        if ((power - resistance) > 50) 
+                            speed <= (speed + 3 > 250) ? 250 : speed + 3;
+                        else if ((power - resistance) > 20) 
+                            speed <= (speed + 2 > 250) ? 250 : speed + 2;
+                        else 
+                            speed <= speed + 1;
                     end
                 end 
                 // 힘이 부족하면 감속 (자연 감속)

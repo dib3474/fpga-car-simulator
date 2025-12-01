@@ -22,6 +22,8 @@ module Light_Controller (
 );
 
     // 1. 오토라이트 판단
+    // [수정] 현재 밝은 곳에서도 켜져 있음 -> 밝을 때 값이 높음 (High Value = Bright)
+    // 따라서 어두울 때 켜지려면 값이 낮아져야 함 (< Threshold)
     wire is_dark = (cds_val < 100); 
     wire head_on = sw_headlight || is_dark; // 전조등 ON 조건
     
