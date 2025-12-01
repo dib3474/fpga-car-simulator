@@ -13,9 +13,10 @@ module SPI_ADC_Controller (
     output reg [7:0] adc_cds = 0     // CH1
 );
 
-    // Clock Divider for SPI SCLK (Target: ~1MHz)
-    // 50MHz / 50 = 1MHz. Toggle every 25 cycles.
-    reg [7:0] clk_cnt;
+    // Clock Divider for SPI SCLK (Target: 10kHz)
+    // User Requirement: "Clk는... 10kHz로 설정해야 사용해야 합니다."
+    // 50MHz / 10kHz = 5000. Toggle every 2500 cycles.
+    reg [15:0] clk_cnt;
     reg sck_enable_rise; 
     reg sck_enable_fall; 
     
@@ -28,7 +29,7 @@ module SPI_ADC_Controller (
         end else begin
             sck_enable_rise <= 0;
             sck_enable_fall <= 0;
-            if (clk_cnt >= 24) begin // 25 cycles (0~24)
+            if (clk_cnt >= 2499) begin // 2500 cycles (0~2499)
                 clk_cnt <= 0;
                 spi_sck <= ~spi_sck;
                 if (spi_sck == 0) sck_enable_rise <= 1; // 0->1 Rising
