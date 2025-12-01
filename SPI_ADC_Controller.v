@@ -122,16 +122,13 @@ module SPI_ADC_Controller (
                 end
 
                 S_DONE: begin
-                    // AD7908 Data Format:
-                    // 2 Leading Zeros + 3 Address Bits + 8 Data Bits + Trailing Zeros
-                    // shift_in[15:0] structure:
-                    // [15:14]: 00
-                    // [13:11]: Address
-                    // [10:3]:  Data (8-bit)
-                    // [2:0]:   Trailing
+                    // AD7908 Data Format Adjustment
+                    // Symptom: Max value is around 84 (should be 255).
+                    // Cause: Data bits are likely shifted by 2 positions due to timing delays.
+                    // Fix: Read from [8:1] instead of [10:3] to multiply value by 4.
                     
-                    if (prev_addr == 0) adc_cds <= shift_in[10:3];        // CH0 -> CdS
-                    else if (prev_addr == 1) adc_accel <= shift_in[10:3]; // CH1 -> Accel
+                    if (prev_addr == 0) adc_accel <= shift_in[8:1];      // CH0 -> Accel (Shifted)
+                    else if (prev_addr == 1) adc_cds <= shift_in[8:1];   // CH1 -> CdS (Shifted)
                     
                     // Update Pipeline
                     prev_addr <= channel_addr;
