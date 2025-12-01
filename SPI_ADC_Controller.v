@@ -111,103 +111,17 @@ module SPI_ADC_Controller (
                 end
 
                 S_DONE: begin
-                    // AD7908 Data Format:
-                    // [15:14]: 00
-                    // [13:11]: Address
-                    // [10:3]:  Data (8-bit)
-                    // [2:0]:   Trailing
+                    // AD7908 Data Format (Adjusted for Early Timing):
+                    // [15:13]: Header/Address
+                    // [12:5]:  Data (8-bit) <-- Shifted to [12:5]
+                    // [4:0]:   Trailing
                     
-                    // [Fix] User reports speed decreases when voltage > 2.5V.
-                    // This indicates bit overflow or misalignment where MSB is being lost or interpreted as sign.
-                    // If 2.5V is mid-scale (128), and it wraps around or decreases, we might be reading the wrong bits.
-                    // Let's try shifting the window by 1 bit to the left [11:4] to capture the MSB if it was in bit 11.
-                    // Or, if the range bit was wrong, maybe it's outputting 10-bit? No, it's 8-bit.
+                    // [Fix] User reports speed drops after 2.5V with [11:4].
+                    // This means [11:4] is still missing the MSB (reading DB6..DB0).
+                    // Data is arriving even earlier. Shift to [12:5].
                     
-                    // Let's look at the shift_in construction.
-                    // shift_in <= {shift_in[14:0], spi_miso};
-                    // If we read 16 bits.
-                    // Bit 15 (First bit read) -> shift_in[15]
-                    // ...
-                    // Bit 0 (Last bit read) -> shift_in[0]
-                    
-                    // AD7908 Timing:
-                    // Cycle 1: Leading Zero
-                    // Cycle 2: Leading Zero
-                    // Cycle 3: ADD2
-                    // Cycle 4: ADD1
-                    // Cycle 5: ADD0
-                    // Cycle 6: DB7 (MSB)
-                    // ...
-                    // Cycle 13: DB0 (LSB)
-                    
-                    // Our code reads 16 bits.
-                    // If bit_cnt=1 is the first read (Cycle 1).
-                    // shift_in[15] = Cycle 1 (0)
-                    // shift_in[14] = Cycle 2 (0)
-                    // shift_in[13] = Cycle 3 (ADD2)
-                    // shift_in[12] = Cycle 4 (ADD1)
-                    // shift_in[11] = Cycle 5 (ADD0)
-                    // shift_in[10] = Cycle 6 (DB7)
-                    // ...
-                    // shift_in[3] = Cycle 13 (DB0)
-                    
-                    // Wait, if the user says > 2.5V speed decreases.
-                    // 2.5V is usually half of 5V. If Vref is 5V, 2.5V is 127 (01111111).
-                    // If it goes to 128 (10000000), and we are missing the MSB, it becomes 0.
-                    // This strongly suggests we are reading [9:2] instead of [10:3], effectively missing the MSB (DB7).
-                    // If we read [9:2], DB7 is lost.
-                    // When value is 127 (01111111), [9:2] sees 1111111.
-                    // When value is 128 (10000000), [9:2] sees 0000000. -> Speed drops to 0!
-                    
-                    // So we need to shift LEFT by 1 bit to catch the MSB.
-                    // We should read [11:4] instead of [10:3]?
-                    // Let's re-verify the cycle count.
-                    // We start reading when sck_enable_rise is true.
-                    // bit_cnt starts at 0.
-                    // In S_TRANS:
-                    // if (sck_enable_rise)
-                    //   if (bit_cnt >= 1 && bit_cnt <= 16) shift_in <= ...
-                    
-                    // Cycle 1 (bit_cnt=1): Read 1st bit.
-                    // ...
-                    // Cycle 16 (bit_cnt=16): Read 16th bit.
-                    
-                    // If AD7908 outputs DB7 at Cycle 6.
-                    // Cycle 1: 0
-                    // Cycle 2: 0
-                    // Cycle 3: A2
-                    // Cycle 4: A1
-                    // Cycle 5: A0
-                    // Cycle 6: DB7
-                    
-                    // If we shift in 16 times.
-                    // shift_in[0] is the LAST bit read (Cycle 16).
-                    // shift_in[15] is the FIRST bit read (Cycle 1).
-                    
-                    // shift_in[15] = Cycle 1 (0)
-                    // shift_in[14] = Cycle 2 (0)
-                    // shift_in[13] = Cycle 3 (A2)
-                    // shift_in[12] = Cycle 4 (A1)
-                    // shift_in[11] = Cycle 5 (A0)
-                    // shift_in[10] = Cycle 6 (DB7) <-- This matches my previous logic.
-                    
-                    // BUT, maybe the chip outputs data one cycle earlier or later?
-                    // Or maybe the "Leading Zeros" are fewer?
-                    // If the speed drops after 2.5V (128), it means the MSB is being interpreted as something else or ignored.
-                    // If we are reading [9:2], then DB7 (at index 10) is ignored.
-                    // DB6 (at index 9) becomes the MSB of our result.
-                    // So 0..127 works fine. 128 (10000000) becomes 0.
-                    
-                    // Wait, if I am reading [10:3], I AM reading DB7.
-                    // Unless... DB7 is actually at [11]?
-                    // Let's try reading [11:4].
-                    // If DB7 is at 11, then A0 is at 12, A1 at 13, A2 at 14.
-                    // That would mean only 1 leading zero?
-                    
-                    // Let's try shifting the window to [11:4].
-                    
-                    if (prev_addr == 0) adc_cds <= shift_in[11:4];        // CH0 -> CdS
-                    else if (prev_addr == 1) adc_accel <= shift_in[11:4]; // CH1 -> Accel
+                    if (prev_addr == 0) adc_cds <= shift_in[12:5];        // CH0 -> CdS
+                    else if (prev_addr == 1) adc_accel <= shift_in[12:5]; // CH1 -> Accel
                     
                     // Update Pipeline
                     prev_addr <= channel_addr;
