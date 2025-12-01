@@ -62,14 +62,27 @@ module Car_Simulator_Top (
             prev_key_0 <= 0;
         end else if (tick_spd) begin 
             prev_key_0 <= KEY_0;
+            
+            // [Feature] Engine Stalls if Fuel is Empty
+            if (power_state == STATE_RUN && fuel_w == 0) begin
+                power_state <= STATE_ACC; 
+            end
+            
             if (KEY_0 && !prev_key_0) begin
                 case (power_state)
                     STATE_OFF: begin
-                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN; 
+                        if (KEY_STAR && gear_reg == 4'd3) begin
+                            // Only start if fuel > 0
+                            if (fuel_w > 0) power_state <= STATE_RUN;
+                            else power_state <= STATE_ACC;
+                        end
                         else power_state <= STATE_ACC; 
                     end
                     STATE_ACC: begin
-                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN; 
+                        if (KEY_STAR && gear_reg == 4'd3) begin
+                            // Only start if fuel > 0
+                            if (fuel_w > 0) power_state <= STATE_RUN;
+                        end
                         else power_state <= STATE_OFF; 
                     end
                     STATE_RUN: begin
