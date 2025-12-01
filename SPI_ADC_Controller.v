@@ -42,8 +42,8 @@ module SPI_ADC_Controller (
     // FSM
     reg [2:0] state;
     reg [4:0] bit_cnt;
-    reg [2:0] channel_addr; // Address to send (Next Channel)
-    reg [15:0] shift_in;    // Data received
+    reg channel_addr; // 1 bit for MCP3202 (0:CH0, 1:CH1)
+    reg [11:0] shift_in; // 12-bit Data
     
     localparam S_IDLE = 0;
     localparam S_START = 1;
@@ -72,32 +72,36 @@ module SPI_ADC_Controller (
                 S_START: begin
                     spi_cs_n <= 0; 
                     bit_cnt <= 0;
-                    spi_mosi <= 0; // Bit 15 (X)
+                    spi_mosi <= 1; // Start Bit (MCP3202)
                     state <= S_TRANS;
                 end
 
                 S_TRANS: begin
                     // Read MISO on Rising Edge
                     if (sck_enable_rise) begin
-                        shift_in <= {shift_in[14:0], spi_miso};
+                        // MCP3202: Null bit at Cycle 5, Data B11..B0 at Cycle 6..17
+                        if (bit_cnt >= 5) begin
+                            shift_in <= {shift_in[10:0], spi_miso};
+                        end
                     end
                     
                     // Write MOSI on Falling Edge
                     if (sck_enable_fall) begin
                         bit_cnt <= bit_cnt + 1;
-                        if (bit_cnt == 16) begin 
+                        if (bit_cnt == 17) begin // Total 17 Cycles
                             state <= S_DONE;
-                            spi_cs_n <= 1; // [Fix] Raise CS immediately after 16th cycle
+                            spi_cs_n <= 1;
                         end else begin
-                            // Send Address at Bit 13, 12, 11 (Cycle 2, 3, 4)
-                            // bit_cnt 1 (Fall 1) -> Set Bit 13 (ADD2) for Cycle 3 Rise
-                            // bit_cnt 2 (Fall 2) -> Set Bit 12 (ADD1) for Cycle 4 Rise
-                            // bit_cnt 3 (Fall 3) -> Set Bit 11 (ADD0) for Cycle 5 Rise
+                            // MCP3202 Control Bits
+                            // Cycle 1: Start (Sent in S_START)
+                            // Cycle 2: SGL/DIFF (1)
+                            // Cycle 3: ODD/SIGN (Channel)
+                            // Cycle 4: MSBF (1)
                             
-                            case (bit_cnt + 1)
-                                2: spi_mosi <= channel_addr[2]; // Bit 13 (ADD2)
-                                3: spi_mosi <= channel_addr[1]; // Bit 12 (ADD1)
-                                4: spi_mosi <= channel_addr[0]; // Bit 11 (ADD0)
+                            case (bit_cnt)
+                                0: spi_mosi <= 1; // SGL (for Cycle 2)
+                                1: spi_mosi <= channel_addr; // ODD (for Cycle 3)
+                                2: spi_mosi <= 1; // MSBF (for Cycle 4)
                                 default: spi_mosi <= 0;
                             endcase
                         end
@@ -105,16 +109,12 @@ module SPI_ADC_Controller (
                 end
 
                 S_DONE: begin
-                    // Pipeline: Data received is for the PREVIOUS channel.
-                    // [Swap Fix] If CH0=CDS, CH1=Accel (or correcting pipeline mismatch)
-                    // If we just sent CH1 (channel_addr=1), we received CH0 data.
-                    if (channel_addr == 1) adc_cds <= shift_in[11:4]; // Received CH0 -> CDS
-                    else if (channel_addr == 0) adc_accel <= shift_in[11:4]; // Received CH1 -> Accel
+                    // MCP3202 is NOT pipelined. Data corresponds to the command just sent.
+                    if (channel_addr == 0) adc_accel <= shift_in[11:4]; // CH0 -> Accel
+                    else adc_cds <= shift_in[11:4]; // CH1 -> CDS
                     
-                    // Toggle Channel for next frame
-                    if (channel_addr == 0) channel_addr <= 1;
-                    else channel_addr <= 0;
-                    
+                    // Toggle Channel
+                    channel_addr <= ~channel_addr;
                     state <= S_IDLE;
                 end
             endcase
