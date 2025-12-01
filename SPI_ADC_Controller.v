@@ -97,9 +97,9 @@ module SPI_ADC_Controller (
                             // bit_cnt 3 (Fall 4) -> Set Bit 11 (ADD0)
                             
                             case (bit_cnt + 1)
-                                2: spi_mosi <= channel_addr[2]; // Bit 13
-                                3: spi_mosi <= channel_addr[1]; // Bit 12
-                                4: spi_mosi <= channel_addr[0]; // Bit 11
+                                3: spi_mosi <= channel_addr[2]; // Bit 13 (ADD2)
+                                4: spi_mosi <= channel_addr[1]; // Bit 12 (ADD1)
+                                5: spi_mosi <= channel_addr[0]; // Bit 11 (ADD0)
                                 default: spi_mosi <= 0;
                             endcase
                         end
