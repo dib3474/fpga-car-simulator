@@ -1,12 +1,12 @@
 module Car_Simulator_Top (
     input CLK,
-    // ≈∞∆–µÂ
+    // ÌÇ§Ìå®Îìú
     input KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6,
     input KEY_7, KEY_8, KEY_9, KEY_STAR, KEY_0, KEY_SHARP,
-    // Ω∫¿ßƒ° & ADC
+    // Ïä§ÏúÑÏπò & ADC
     input [7:0] DIP_SW,
     output SPI_SCK, SPI_AD, SPI_DIN, input SPI_DOUT,
-    // √‚∑¬
+    // Ï∂úÎ†•
     output [7:0] SEG_DATA, SEG_COM,
     output PIEZO,
     output [7:0] LED,
@@ -28,11 +28,11 @@ module Car_Simulator_Top (
     reg [3:0] gear_reg = 4'd3;
     reg engine_on = 1'b0;
 
-    // ∏Æº¬ ∑Œ¡˜
+    // Î¶¨ÏÖã Î°úÏßÅ
     wire global_safe_rst;
-    assign global_safe_rst = (KEY_8 && (spd_w == 0) && (gear_reg == 4'd3) && KEY_STAR && DIP_SW[7]); 
+    assign global_safe_rst = (KEY_8 && (spd_w == 0) && (gear_reg == 4'd3) && KEY_STAR && DIP_SW[7]);
 
-    // --- ≈¨∑∞ π◊ ADC ---
+    // --- ÌÅ¥Îü≠ Î∞è ADC ---
     Clock_Gen u_clk (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .tick_scan(tick_scn));
     SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_w), .adc_cds(adc_cds_w));
 
@@ -48,7 +48,7 @@ module Car_Simulator_Top (
         .ess_active_out(ess_active_wire)
     );
 
-    // --- Ω√µø FSM ---
+    // --- ÏãúÎèô FSM ---
     parameter STATE_OFF = 2'd0;
     parameter STATE_ACC = 2'd1;
     parameter STATE_RUN = 2'd2;
@@ -65,15 +65,15 @@ module Car_Simulator_Top (
             if (KEY_0 && !prev_key_0) begin
                 case (power_state)
                     STATE_OFF: begin
-                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN; 
+                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN;
                         else power_state <= STATE_ACC; 
                     end
                     STATE_ACC: begin
-                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN; 
+                        if (KEY_STAR && gear_reg == 4'd3) power_state <= STATE_RUN;
                         else power_state <= STATE_OFF; 
                     end
                     STATE_RUN: begin
-                        if (spd_w == 0) power_state <= STATE_OFF; 
+                        if (spd_w == 0) power_state <= STATE_OFF;
                     end
                 endcase
             end
@@ -82,7 +82,7 @@ module Car_Simulator_Top (
 
     always @(*) engine_on = (power_state == STATE_RUN);
 
-    // --- ±‚æÓ ∫Ø∞Ê ---
+    // --- Í∏∞Ïñ¥ Î≥ÄÍ≤Ω ---
     always @(posedge CLK or posedge global_safe_rst) begin
         if (global_safe_rst) gear_reg <= 4'd3;
         else begin
@@ -95,25 +95,48 @@ module Car_Simulator_Top (
 
     Vehicle_Logic u_logic (.clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), .tick_1sec(tick_1s), .tick_speed(tick_spd), .current_gear(gear_reg), .adc_accel(adc_accel_w), .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), .ess_trigger(ess_trig));
     
-    // --- LED & LCD ¡¶æÓ ---
+    // --- LED & LCD Ï†úÏñ¥ ---
     wire [7:0] led_logic_out;
     wire [7:0] lcd_data_logic;
     wire lcd_rs_logic, lcd_rw_logic, lcd_e_logic;
     
-    // ∫Í∑π¿Ã≈© ∞®¡ˆ (Ω√µø ≤®¡Æµµ ¿€µø)
+    // Î∏åÎ†àÏù¥ÌÅ¨ Í∞êÏßÄ
     wire is_brake_active;
     assign is_brake_active = (KEY_7 || KEY_STAR);
 
+    // [Ï∂îÍ∞Ä] ÌíÄÏª¨Îü¨ LED Ï†úÏñ¥Î•º ÏúÑÌïú Ï§ëÍ∞Ñ ÏôÄÏù¥Ïñ¥
+    wire [3:0] fc_r_w, fc_g_w, fc_b_w;
+
     Turn_Signal_Logic u_sig (.clk(CLK), .rst(global_safe_rst), .sw_left(DIP_SW[0]), .sw_right(DIP_SW[1]), .sw_hazard(DIP_SW[2]), .ess_active(ess_active_wire), .led_left(led_l), .led_right(led_r));
     
-    Light_Controller u_light (.clk(CLK), .rst(global_safe_rst), .sw_headlight(DIP_SW[3]), .sw_high_beam(DIP_SW[4]), .cds_val(adc_cds_w), .is_brake(is_brake_active), .is_reverse(gear_reg == 4'd6), .turn_left(led_l), .turn_right(led_r), .fc_red(FC_RED), .fc_green(FC_GREEN), .fc_blue(FC_BLUE), .led_port(led_logic_out));
+    // [ÏàòÏ†ï] Light_ControllerÎäî ÏûÖÎ†• Ï°∞Í±¥ÏùÑ Îî∞ÏßÄÏßÄ ÏïäÍ≥† Í∑∏ÎÉ• Ïó∞Í≤∞Ìï©ÎãàÎã§.
+    // ÎåÄÏã† Ï∂úÎ†•(FC_RED Îì±)ÏùÑ ÏôÄÏù¥Ïñ¥(fc_r_w)Ïóê Î∞õÏïÑÏÑú ÏïÑÎûòÏóêÏÑú Ï†úÏñ¥Ìï©ÎãàÎã§.
+    Light_Controller u_light (
+        .clk(CLK), 
+        .rst(global_safe_rst), 
+        .sw_headlight(DIP_SW[3]), 
+        .sw_high_beam(DIP_SW[4]), 
+        .cds_val(adc_cds_w), 
+        .is_brake(is_brake_active), 
+        .is_reverse(gear_reg == 4'd6), 
+        .turn_left(led_l), 
+        .turn_right(led_r), 
+        .fc_red(fc_r_w),   // [Î≥ÄÍ≤Ω] Ï§ëÍ∞Ñ ÏôÄÏù¥Ïñ¥Î°ú Ïó∞Í≤∞
+        .fc_green(fc_g_w), // [Î≥ÄÍ≤Ω]
+        .fc_blue(fc_b_w),  // [Î≥ÄÍ≤Ω]
+        .led_port(led_logic_out)
+    );
 
-    // [ºˆ¡§µ» LED ∑Œ¡˜] 
-    // Ω√µø ≤®¡¸ ªÛ≈¬ø°º≠µµ '∫ÒªÛµÓ'∞˙ '∫Í∑π¿Ã≈©µÓ'¿∫ ¿€µø«œµµ∑œ OR ø¨ªÍ ªÁøÎ
-    // ∫Í∑π¿Ã≈©µÓ: ∞°øÓµ• 4∞≥ (00111100)
+    // [ÏàòÏ†ïÎêú LED Î°úÏßÅ] 
     assign LED = (engine_on) ? led_logic_out : 
                  ((DIP_SW[2] ? (led_logic_out & 8'b11000011) : 8'b0) | 
                   (is_brake_active ? 8'b00111100 : 8'b0));
+
+    // [Ï∂îÍ∞ÄÎêú ÌíÄÏª¨Îü¨ LED Î°úÏßÅ]
+    // ÏãúÎèôÏù¥ ÏºúÏ°åÏùÑ ÎïåÎßå(engine_on) ÏôÄÏù¥Ïñ¥ Í∞íÏùÑ ÎÇ¥Î≥¥ÎÇ¥Í≥†, ÏïÑÎãàÎ©¥ 0(Í∫ºÏßê)ÏùÑ ÎÇ¥Î≥¥ÎÉÖÎãàÎã§.
+    assign FC_RED   = (engine_on) ? fc_r_w : 4'd0;
+    assign FC_GREEN = (engine_on) ? fc_g_w : 4'd0;
+    assign FC_BLUE  = (engine_on) ? fc_b_w : 4'd0;
 
     Step_Motor_Controller u_steer (
         .clk(CLK),
@@ -125,37 +148,37 @@ module Car_Simulator_Top (
         .step_out(STEP_MOTOR)
     );
 
-    // 7-Segment
+    // 7-Segment (TPS ÌëúÏãú Í∏∞Îä• Ï∂îÍ∞ÄÎê®)
     Display_Unit u_disp (
         .clk(CLK), 
-        .rst(global_safe_rst || (power_state == STATE_OFF)), // Segment¥¬ ∏Æº¬¿∏∑Œ ≤˚
+        .rst(global_safe_rst || (power_state == STATE_OFF)), 
         .tick_scan(tick_scn), .obd_mode_sw(DIP_SW[7]), 
         .rpm(engine_on ? rpm_w : 14'd0), 
         .speed(engine_on ? spd_w : 8'd0), 
         .fuel(engine_on ? fuel_w : 8'd0), 
         .temp(engine_on ? temp_w : 8'd0), 
+        .adc_val(adc_accel_w), // [Ï∂îÍ∞Ä] OBD Î™®ÎìúÏóêÏÑú ÏïÖÏÖÄÎüâ ÌëúÏãúÎ•º ÏúÑÌï¥ Ïó∞Í≤∞
         .gear_char(gear_reg), 
         .seg_data(SEG_DATA), .seg_com(SEG_COM), .seg_1_data(SEG_1_DATA)
     );
 
-    // [ºˆ¡§µ» LCD ø¨∞·]
-    // 1. RSTø°º≠ STATE_OFF ¡∂∞«¿ª ª∞Ω¿¥œ¥Ÿ. (±◊∑°æﬂ LCDø° '∞¯πÈ'¿ª ±◊∏± ºˆ ¿÷¿Ω)
-    // 2. is_off Ω≈»£∏¶ ø¨∞·«ﬂΩ¿¥œ¥Ÿ.
+    // LCD (ÏãúÎèô OFF Ïãú Í∫ºÏßê Ïã†Ìò∏ Ï†ÑÎã¨)
     LCD_Module u_lcd (
         .clk(CLK), 
-        .rst(global_safe_rst), // [ºˆ¡§] ∞≠¡¶ ∏Æº¬ ¡¶∞≈!
+        .rst(global_safe_rst), 
         .engine_on(engine_on), 
-        .is_off(power_state == STATE_OFF), // [√ﬂ∞°] Ω√µø OFF Ω≈»£ ¿¸¥ﬁ
+        .is_off(power_state == STATE_OFF), 
         .odometer(odo_w), 
         .fuel(fuel_w), 
         .is_side_brake(DIP_SW[6]), 
         .lcd_rs(lcd_rs_logic), .lcd_rw(lcd_rw_logic), .lcd_e(lcd_e_logic), .lcd_data(lcd_data_logic)
     );
     
-    assign LCD_RS   = lcd_rs_logic; 
-    assign LCD_RW   = lcd_rw_logic;
-    assign LCD_E    = lcd_e_logic;
-    assign LCD_DATA = lcd_data_logic;
+    // LCD Ïã†Ìò∏ Ï∞®Îã®
+    assign LCD_RS   = (power_state == STATE_OFF) ? 1'b0 : lcd_rs_logic; 
+    assign LCD_RW   = (power_state == STATE_OFF) ? 1'b0 : lcd_rw_logic;
+    assign LCD_E    = (power_state == STATE_OFF) ? 1'b0 : lcd_e_logic;
+    assign LCD_DATA = (power_state == STATE_OFF) ? 8'b0 : lcd_data_logic;
 
     Servo_Controller u_servo (.clk(CLK), .rst(global_safe_rst), .speed(spd_w), .servo_pwm(SERVO_PWM));
     Sound_Unit u_snd (.clk(CLK), .rst(global_safe_rst), .rpm(rpm_w), .ess_active(led_l | led_r), .is_horn(KEY_1), .is_reverse(gear_reg == 4'd6), .turn_signal_on(led_l | led_r), .engine_on(engine_on), .accel_active(accel_active), .piezo_out(PIEZO));
