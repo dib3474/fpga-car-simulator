@@ -33,8 +33,12 @@ module Car_Simulator_Top (
     assign global_safe_rst = (KEY_8 && (spd_w == 0) && (gear_reg == 4'd3) && KEY_STAR && DIP_SW[7]);
 
     // --- 클럭 및 ADC ---
+    wire [7:0] adc_accel_raw; // ADC 원본 값
     Clock_Gen u_clk (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .tick_scan(tick_scn));
-    SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_w), .adc_cds(adc_cds_w));
+    SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_raw), .adc_cds(adc_cds_w));
+
+    // [수정] 연료가 없으면 엑셀 입력을 차단 (0으로 만듦) -> 자연 감속 유도
+    assign adc_accel_w = (fuel_w > 0) ? adc_accel_raw : 8'd0;
 
     assign accel_active = (adc_accel_w > 8'd10);
     
@@ -63,10 +67,10 @@ module Car_Simulator_Top (
         end else if (tick_spd) begin 
             prev_key_0 <= KEY_0;
             
-            // [Feature] Engine Stalls if Fuel is Empty
-            if (power_state == STATE_RUN && fuel_w == 0) begin
-                power_state <= STATE_ACC; 
-            end
+            // [Feature] Engine Stalls if Fuel is Empty -> Removed
+            // if (power_state == STATE_RUN && fuel_w == 0) begin
+            //    power_state <= STATE_ACC; 
+            // end
             
             if (KEY_0 && !prev_key_0) begin
                 case (power_state)
@@ -144,8 +148,9 @@ module Car_Simulator_Top (
     );
 
     // [수정된 LED 로직] 
+    // 시동이 꺼져도 깜빡이(Turn Signal)는 동작하도록 수정
     assign LED = (engine_on) ? led_logic_out : 
-                 ((DIP_SW[2] ? (led_logic_out & 8'b11000011) : 8'b0) | 
+                 ((led_logic_out & 8'b11000011) | 
                   (is_brake_active ? 8'b00111100 : 8'b0));
 
     // [추가된 풀컬러 LED 로직]
