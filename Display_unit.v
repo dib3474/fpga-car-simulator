@@ -2,11 +2,12 @@ module Display_Unit (
     input clk, 
     input rst,              // Reset
     input tick_scan, 
-    input obd_mode_sw,
+    input obd_mode_sw,      // 0: Normal, 1: OBD
     input [13:0] rpm, 
     input [7:0] speed, 
     input [7:0] fuel, 
     input [7:0] temp, 
+    input [7:0] accel,      // 악셀 강도
     input [3:0] gear_char, 
     
     // 8-Digit 7-Segment
@@ -21,21 +22,35 @@ module Display_Unit (
     reg [2:0] scan_idx = 0; 
     reg [3:0] hex_digit = 0;
 
-    // Convert 0~9999 value into four packed BCD digits.
-    function [15:0] to_bcd4;
+    // --- Leading Zero Blanking이 적용된 BCD 변환 함수 ---
+    // 앞쪽의 0은 F(Blank)로 채워서 소등시킴
+    function [15:0] to_bcd4_blank;
         input [15:0] value;
-        integer temp;
+        integer temp_val;
         integer thousands, hundreds, tens, ones;
         begin
-            temp = value;
-            if (temp > 9999) temp = 9999;
-            thousands = temp / 1000;
-            temp = temp % 1000;
-            hundreds = temp / 100;
-            temp = temp % 100;
-            tens = temp / 10;
-            ones = temp % 10;
-            to_bcd4 = {thousands[3:0], hundreds[3:0], tens[3:0], ones[3:0]};
+            temp_val = value;
+            if (temp_val > 9999) temp_val = 9999;
+            
+            thousands = temp_val / 1000;
+            temp_val = temp_val % 1000;
+            hundreds = temp_val / 100;
+            temp_val = temp_val % 100;
+            tens = temp_val / 10;
+            ones = temp_val % 10;
+
+            // 천, 백, 십의 자리가 0이면 순차적으로 F(Blank) 처리
+            if (thousands == 0) begin
+                thousands = 4'hF; 
+                if (hundreds == 0) begin
+                    hundreds = 4'hF; 
+                    if (tens == 0) begin
+                        tens = 4'hF; 
+                    end
+                end
+            end
+            
+            to_bcd4_blank = {thousands[3:0], hundreds[3:0], tens[3:0], ones[3:0]};
         end
     endfunction
 
@@ -59,20 +74,25 @@ module Display_Unit (
                 4'hC: encode_digit = 8'b0011_1001;
                 4'hD: encode_digit = 8'b0101_1110;
                 4'hE: encode_digit = 8'b0111_1001;
-                4'hF: encode_digit = 8'b0111_0001;
+                // 4'hF가 들어오면 아예 끔 (Blank)
+                4'hF: encode_digit = 8'b0000_0000; 
                 default: encode_digit = 8'b0000_0000;
             endcase
         end
     endfunction
 
-    // --- 1. Data Selection ---
+    // --- 1. Data Selection (모드별 데이터 선택) ---
     always @(*) begin
         if (obd_mode_sw) begin 
-            left_val = to_bcd4({8'b0, fuel});
-            right_val = to_bcd4({8'b0, temp});
+            // [OBD 모드] 
+            // 왼쪽: RPM / 오른쪽: 엔진 온도 (위치 변경됨)
+            left_val = to_bcd4_blank({2'b0, rpm});   
+            right_val = to_bcd4_blank({8'b0, temp});
         end else begin 
-            left_val = to_bcd4({2'b0, rpm});
-            right_val = to_bcd4({8'b0, speed});
+            // [일반 모드] 
+            // 왼쪽: 악셀강도 / 오른쪽: 속도
+            left_val = to_bcd4_blank({8'b0, accel}); 
+            right_val = to_bcd4_blank({8'b0, speed});
         end
     end
 
@@ -85,38 +105,41 @@ module Display_Unit (
     // --- 3. 8-Digit Output (Active High Data, Active Low Common) ---
     always @(*) begin
         if (rst) begin
-            seg_com = 8'hFF; 
+            seg_com = 8'hFF;
             seg_data = 8'h00; 
         end else begin
             // Active Low Common
-            seg_com = 8'hFF; 
+            seg_com = 8'hFF;
             seg_com[scan_idx] = 0; 
 
             // Digit Selection
             case (scan_idx)
-                0: hex_digit = right_val[3:0]; 1: hex_digit = right_val[7:4];
-                2: hex_digit = right_val[11:8]; 3: hex_digit = right_val[15:12];
-                4: hex_digit = left_val[3:0]; 5: hex_digit = left_val[7:4];
-                6: hex_digit = left_val[11:8]; 7: hex_digit = left_val[15:12];
+                // Right Value (Speed or Temp)
+                0: hex_digit = right_val[3:0];
+                1: hex_digit = right_val[7:4];
+                2: hex_digit = right_val[11:8]; 
+                3: hex_digit = right_val[15:12];
+                // Left Value (Accel or RPM)
+                4: hex_digit = left_val[3:0]; 
+                5: hex_digit = left_val[7:4];
+                6: hex_digit = left_val[11:8]; 
+                7: hex_digit = left_val[15:12];
             endcase
             
             seg_data = encode_digit(hex_digit);
         end
     end
 
-    // --- 4. 1-Digit Output (Active High Data with Pin Remapping) ---
-    // Remapping based on observation: P->3, R->(c,d)
-    // Logical Segments: a, b, c, d, e, f, g
-    // --- 4. 1-Digit Output (Hardcoded Patterns) ---
-    // P: 0xCE, r: 0x0A, n: 0x2A, d: 0x7A (User provided patterns + DP=0)
+    // --- 4. 1-Digit Output (기어 단수 표시) ---
+    // P, r, n, d 패턴 출력
     always @(*) begin
-        if (rst) seg_1_data = 8'h00; 
+        if (rst) seg_1_data = 8'h00;
         else begin
             case (gear_char)
-                4'd3:  seg_1_data = 8'hCE; // P (11001110)
-                4'd6:  seg_1_data = 8'h0A; // r (00001010)
-                4'd9:  seg_1_data = 8'h2A; // n (00101010)
-                4'd12: seg_1_data = 8'h7A; // d (01111010)
+                4'd3:  seg_1_data = 8'hCE; // P
+                4'd6:  seg_1_data = 8'h0A; // r
+                4'd9:  seg_1_data = 8'h2A; // n
+                4'd12: seg_1_data = 8'h7A; // d
                 default: seg_1_data = 8'h00;
             endcase
         end
