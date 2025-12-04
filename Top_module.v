@@ -173,7 +173,6 @@ module Car_Simulator_Top (
         .speed(engine_on ? spd_w : 8'd0), 
         .fuel(engine_on ? fuel_w : 8'd0), 
         .temp(engine_on ? temp_w : 8'd0), 
-        .adc_val(adc_accel_w), // [추가] OBD 모드에서 악셀량 표시를 위해 연결
         .gear_char(gear_reg), 
         .seg_data(SEG_DATA), .seg_com(SEG_COM), .seg_1_data(SEG_1_DATA)
     );
