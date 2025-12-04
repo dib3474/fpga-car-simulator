@@ -19,26 +19,49 @@ module LCD_Module (
     reg [27:0] engine_start_timer = 0;
     reg prev_engine_on = 0;
     reg show_engine_on_msg = 0;
+    
+    // Key On Animation Logic
+    reg [27:0] key_on_timer = 0;
+    reg prev_is_off = 1;
+    reg show_key_on_msg = 0;
 
     function [7:0] digit2ascii; input [3:0] d; begin if(d<10) digit2ascii=d+8'h30; else digit2ascii=8'h20; end endfunction
 
-    // Detect Engine Start Edge
+    // Detect Engine Start Edge & Key On Edge
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             engine_start_timer <= 0;
             prev_engine_on <= 0;
             show_engine_on_msg <= 0;
+            
+            key_on_timer <= 0;
+            prev_is_off <= 1;
+            show_key_on_msg <= 0;
         end else begin
+            // Engine On Logic
             prev_engine_on <= engine_on;
             if (!engine_on) begin
                 show_engine_on_msg <= 0;
                 engine_start_timer <= 0;
             end else if (engine_on && !prev_engine_on) begin
-                engine_start_timer <= 150_000_000; // 3 sec
+                engine_start_timer <= 50_000_000; // 1 sec
                 show_engine_on_msg <= 1;
             end else if (engine_start_timer > 0) begin
                 engine_start_timer <= engine_start_timer - 1;
                 if (engine_start_timer == 1) show_engine_on_msg <= 0;
+            end
+            
+            // Key On Logic
+            prev_is_off <= is_off;
+            if (is_off) begin
+                show_key_on_msg <= 0;
+                key_on_timer <= 0;
+            end else if (!is_off && prev_is_off) begin
+                key_on_timer <= 50_000_000; // 1 sec
+                show_key_on_msg <= 1;
+            end else if (key_on_timer > 0) begin
+                key_on_timer <= key_on_timer - 1;
+                if (key_on_timer == 1) show_key_on_msg <= 0;
             end
         end
     end
@@ -57,19 +80,7 @@ module LCD_Module (
             line2_buf[8]=" "; line2_buf[9]=" "; line2_buf[10]=" "; line2_buf[11]=" ";
             line2_buf[12]=" "; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
         end 
-        // 2. �õ��� �������� ACC(Key On) ������ ��
-        else if (!engine_on) begin
-            line1_buf[0]=" "; line1_buf[1]=" "; line1_buf[2]=" "; line1_buf[3]=" ";
-            line1_buf[4]="K"; line1_buf[5]="E"; line1_buf[6]="Y"; line1_buf[7]=" ";
-            line1_buf[8]="O"; line1_buf[9]="N"; line1_buf[10]=" "; line1_buf[11]=" ";
-            line1_buf[12]=" "; line1_buf[13]=" "; line1_buf[14]=" "; line1_buf[15]=" ";
-
-            line2_buf[0]=" "; line2_buf[1]=" "; line2_buf[2]=" "; line2_buf[3]=" ";
-            line2_buf[4]=" "; line2_buf[5]=" "; line2_buf[6]=" "; line2_buf[7]=" ";
-            line2_buf[8]=" "; line2_buf[9]=" "; line2_buf[10]=" "; line2_buf[11]=" ";
-            line2_buf[12]=" "; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
-        end 
-        // 3. ���� �õ� �ִϸ��̼�
+        // 2. Engine On Message (Priority High)
         else if (show_engine_on_msg) begin
             line1_buf[0]=" "; line1_buf[1]=" "; line1_buf[2]=" "; line1_buf[3]="E";
             line1_buf[4]="N"; line1_buf[5]="G"; line1_buf[6]="I"; line1_buf[7]="N";
@@ -81,7 +92,19 @@ module LCD_Module (
             line2_buf[8]=" "; line2_buf[9]=" "; line2_buf[10]=" "; line2_buf[11]=" ";
             line2_buf[12]=" "; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
         end 
-        // 4. ���� ���
+        // 3. Key On Message
+        else if (show_key_on_msg) begin
+            line1_buf[0]=" "; line1_buf[1]=" "; line1_buf[2]=" "; line1_buf[3]=" ";
+            line1_buf[4]="K"; line1_buf[5]="E"; line1_buf[6]="Y"; line1_buf[7]=" ";
+            line1_buf[8]="O"; line1_buf[9]="N"; line1_buf[10]=" "; line1_buf[11]=" ";
+            line1_buf[12]=" "; line1_buf[13]=" "; line1_buf[14]=" "; line1_buf[15]=" ";
+
+            line2_buf[0]=" "; line2_buf[1]=" "; line2_buf[2]=" "; line2_buf[3]=" ";
+            line2_buf[4]=" "; line2_buf[5]=" "; line2_buf[6]=" "; line2_buf[7]=" ";
+            line2_buf[8]=" "; line2_buf[9]=" "; line2_buf[10]=" "; line2_buf[11]=" ";
+            line2_buf[12]=" "; line2_buf[13]=" "; line2_buf[14]=" "; line2_buf[15]=" ";
+        end
+        // 4. Default (ODO/Fuel)
         else begin
             line1_buf[0]="O"; line1_buf[1]="D"; line1_buf[2]="O"; line1_buf[3]=":"; line1_buf[4]=" ";
             line1_buf[5]=digit2ascii((odometer/10000)%10); line1_buf[6]=digit2ascii((odometer/1000)%10);

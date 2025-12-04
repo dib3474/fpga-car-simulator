@@ -189,11 +189,11 @@ module Car_Simulator_Top (
         .lcd_rs(lcd_rs_logic), .lcd_rw(lcd_rw_logic), .lcd_e(lcd_e_logic), .lcd_data(lcd_data_logic)
     );
     
-    // LCD 신호 차단
-    assign LCD_RS   = (power_state == STATE_OFF) ? 1'b0 : lcd_rs_logic; 
-    assign LCD_RW   = (power_state == STATE_OFF) ? 1'b0 : lcd_rw_logic;
-    assign LCD_E    = (power_state == STATE_OFF) ? 1'b0 : lcd_e_logic;
-    assign LCD_DATA = (power_state == STATE_OFF) ? 8'b0 : lcd_data_logic;
+    // LCD 신호 차단 (제거됨 - 항상 신호 전달)
+    assign LCD_RS   = lcd_rs_logic; 
+    assign LCD_RW   = lcd_rw_logic;
+    assign LCD_E    = lcd_e_logic;
+    assign LCD_DATA = lcd_data_logic;
 
     Servo_Controller u_servo (.clk(CLK), .rst(global_safe_rst), .speed(spd_w), .servo_pwm(SERVO_PWM));
     Sound_Unit u_snd (.clk(CLK), .rst(global_safe_rst), .rpm(rpm_w), .ess_active(led_l | led_r), .is_horn(KEY_1), .is_reverse(gear_reg == 4'd6), .turn_signal_on(led_l | led_r), .engine_on(engine_on), .accel_active(accel_active), .piezo_out(PIEZO));
