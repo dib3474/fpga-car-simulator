@@ -109,12 +109,18 @@ module Vehicle_Logic (
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 가속 불가
                     end 
-                    // [추가] Low Gear Mode 속도 제한 (RPM Redline 도달 시 가속 차단)
-                    // 1단: ~30km/h, 2단: ~60km/h, 3단: ~90km/h
+                    // [추가] Low Gear Mode 속도 제한 (RPM Redline 도달 시 가속 차단 및 엔진 브레이크)
+                    // 1단: ~35km/h, 2단: ~65km/h, 3단: ~95km/h
                     else if (is_low_gear_mode && current_gear == 4'd12) begin
-                        if (max_gear_limit == 1 && speed >= 35) begin /* Limit */ end
-                        else if (max_gear_limit == 2 && speed >= 65) begin /* Limit */ end
-                        else if (max_gear_limit == 3 && speed >= 95) begin /* Limit */ end
+                        if (max_gear_limit == 1 && speed >= 35) begin 
+                            if (speed > 35) speed <= speed - 1; // [수정] 제한 속도 초과 시 강제 감속
+                        end
+                        else if (max_gear_limit == 2 && speed >= 65) begin 
+                            if (speed > 65) speed <= speed - 1; // [수정] 제한 속도 초과 시 강제 감속
+                        end
+                        else if (max_gear_limit == 3 && speed >= 95) begin 
+                            if (speed > 95) speed <= speed - 1; // [수정] 제한 속도 초과 시 강제 감속
+                        end
                         else if (speed < 250 && rpm < 7900) speed <= speed + 1;
                     end
                     else if (speed < 250 && rpm < 7900) begin // [수정] RPM Redline 제한 추가
