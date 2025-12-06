@@ -21,8 +21,9 @@ module Vehicle_Logic (
     
     // [개선 1] 불감대(Dead Zone) 적용: 노이즈 및 오프셋 보정
     // 센서 초기값이 약 45 정도로 들어오는 현상(속도 40km/h 고정)을 잡기 위해 불감대를 50으로 상향하고 오프셋 제거
+    // [수정] 데드존을 5로 낮춰서 미세한 입력에도 반응하도록 변경 (가만히 있어도 RPM 움직임 유도)
     wire [7:0] effective_accel;
-    assign effective_accel = (adc_accel > 50) ? (adc_accel - 50) : 8'd0;
+    assign effective_accel = (adc_accel > 5) ? (adc_accel - 5) : 8'd0;
 
     // 1. 물리 엔진 (가속도 기반)
     always @(posedge clk or posedge rst) begin
@@ -96,12 +97,13 @@ module Vehicle_Logic (
             rpm = IDLE_RPM + (effective_accel * 20); // 공회전
         else begin // D, R
             // [수정] 기어비 구간 확장 (0~255 속도에 맞춰 6단 분배)
-            if (speed < 40)       rpm = IDLE_RPM + (speed * 100);       // 1단 (0~40)
-            else if (speed < 80)  rpm = 1500 + ((speed - 40) * 80);     // 2단 (40~80)
-            else if (speed < 120) rpm = 1500 + ((speed - 80) * 60);     // 3단 (80~120)
-            else if (speed < 160) rpm = 1600 + ((speed - 120) * 50);    // 4단 (120~160)
-            else if (speed < 200) rpm = 1700 + ((speed - 160) * 40);    // 5단 (160~200)
-            else                  rpm = 1800 + ((speed - 200) * 30);    // 6단 (200~)
+            // 현실적인 RPM 구현: 변속 시점을 4000RPM 대에서 3000RPM 초반대로 낮춤
+            if (speed < 40)       rpm = IDLE_RPM + (speed * 60);        // 1단 (0~40) -> Max ~3200
+            else if (speed < 80)  rpm = 1300 + ((speed - 40) * 50);     // 2단 (40~80) -> Max ~3300
+            else if (speed < 120) rpm = 1400 + ((speed - 80) * 40);     // 3단 (80~120) -> Max ~3000
+            else if (speed < 160) rpm = 1500 + ((speed - 120) * 35);    // 4단 (120~160) -> Max ~2900
+            else if (speed < 200) rpm = 1600 + ((speed - 160) * 30);    // 5단 (160~200) -> Max ~2800
+            else                  rpm = 1700 + ((speed - 200) * 25);    // 6단 (200~)
             
             if (rpm > 8000) rpm = 8000;
         end
