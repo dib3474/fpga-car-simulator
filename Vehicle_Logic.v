@@ -121,7 +121,8 @@ module Vehicle_Logic (
             calc_rpm = IDLE_RPM + (rpm_accel * 20) + rpm_jitter;
             
             // [Rev Limiter] P단 풀악셀 시 엔진 보호를 위해 4000 RPM 제한
-            if (calc_rpm > 4000) rpm = 4000;
+            // [수정] 제한 걸려도 떨림은 유지되도록 수정
+            if (calc_rpm > 4000) rpm = 4000 + rpm_jitter;
             else rpm = calc_rpm;
         end
         

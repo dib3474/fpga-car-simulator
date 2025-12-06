@@ -205,7 +205,35 @@ module Sound_Unit (
     end
 
     // =========================================================
-    // 4. Sound Priority Mux
+    // 4. Engine Sound (RPM based)
+    // =========================================================
+    reg [19:0] engine_cnt;
+    reg [19:0] engine_period;
+    reg engine_wave;
+
+    always @(posedge clk) begin
+        if (engine_on) begin
+            // Simple RPM to Period mapping (Linear approximation)
+            // Higher RPM -> Lower Period -> Higher Pitch
+            // Base (0 RPM) -> ~300,000 (83Hz)
+            // Max (8000 RPM) -> 300,000 - 240,000 = 60,000 (416Hz)
+            if (rpm > 9000) engine_period <= 60000; // Safety clamp
+            else engine_period <= 300000 - (rpm * 30);
+
+            if (engine_cnt >= engine_period) begin
+                engine_cnt <= 0;
+                engine_wave <= ~engine_wave;
+            end else begin
+                engine_cnt <= engine_cnt + 1;
+            end
+        end else begin
+            engine_wave <= 0;
+            engine_cnt <= 0;
+        end
+    end
+
+    // =========================================================
+    // 5. Sound Priority Mux
     // =========================================================
     always @(*) begin
         if (is_horn) begin
@@ -217,8 +245,11 @@ module Sound_Unit (
         else if (reverse_melody_active) begin
             piezo_out = reverse_wave; // Priority 3: Reverse Melody
         end
+        else if (engine_on) begin
+            piezo_out = engine_wave; // Priority 4: Engine Sound
+        end
         else begin
-            piezo_out = 1'b0; // Silence (Engine sound removed)
+            piezo_out = 1'b0; // Silence
         end
     end
 
