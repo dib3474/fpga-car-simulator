@@ -33,6 +33,13 @@ module Vehicle_Logic (
     reg [13:0] calc_rpm; 
     reg [13:0] base_rpm; 
 
+    // [추가] RPM Jitter (0~3) - 엔진 진동 시뮬레이션
+    reg [1:0] rpm_jitter;
+    always @(posedge clk or posedge rst) begin
+        if (rst) rpm_jitter <= 0;
+        else if (tick_speed) rpm_jitter <= rpm_jitter + 1;
+    end
+
     // =========================================================
     // 1. 물리 엔진 (속도 및 가속도 제어)
     // =========================================================
@@ -110,8 +117,8 @@ module Vehicle_Logic (
         
         // --- [수정] P, N 상태 (공회전) ---
         else if (current_gear == 4'd3 || current_gear == 4'd9) begin 
-            // 가상 RPM 계산 (데드존 없는 rpm_accel 사용)
-            calc_rpm = IDLE_RPM + (rpm_accel * 20);
+            // 가상 RPM 계산 (데드존 없는 rpm_accel 사용) + Jitter
+            calc_rpm = IDLE_RPM + (rpm_accel * 20) + rpm_jitter;
             
             // [Rev Limiter] P단 풀악셀 시 엔진 보호를 위해 4000 RPM 제한
             if (calc_rpm > 4000) rpm = 4000;
@@ -130,8 +137,8 @@ module Vehicle_Logic (
             else                  begin base_rpm = 1800 + ((speed - 150) * 27); gear_num = 6; end    // 6단
             
             // [수정] RPM에 부하(Throttle) 및 노이즈 반영
-            // 가속 페달을 밟으면 RPM이 더 오름 (토크 컨버터 슬립 효과)
-            rpm = base_rpm + (effective_accel * 2);
+            // 가속 페달을 밟으면 RPM이 더 오름 (토크 컨버터 슬립 효과) + Jitter
+            rpm = base_rpm + (effective_accel * 2) + rpm_jitter;
             
             // 주행 중 레드존 제한 (8000 RPM)
             if (rpm > 8000) rpm = 8000;
