@@ -10,6 +10,8 @@ module Display_Unit (
     // input [7:0] accel,   // [삭제] 악셀 강도 제거
     input [3:0] gear_char, 
     input [2:0] gear_num, // [추가] 현재 기어 단수 (1~6)
+    input is_low_gear_mode, // [추가]
+    input [2:0] max_gear_limit, // [추가]
     
     // 8-Digit 7-Segment
     output reg [7:0] seg_data = 0, 
@@ -139,10 +141,22 @@ module Display_Unit (
             end else begin
                 // 일반 모드 또는 P/R/N -> 문자 표시
                 case (gear_char)
-                    4'd3:  seg_1_data = 8'hCE; // P
-                    4'd6:  seg_1_data = 8'h0A; // r
-                    4'd9:  seg_1_data = 8'h2A; // n
-                    4'd12: seg_1_data = 8'h7A; // d
+                    4'd3:  seg_1_data = 8'h73; // P (a,b,e,f,g)
+                    4'd6:  seg_1_data = 8'h50; // r (e,g)
+                    4'd9:  seg_1_data = 8'h54; // n (c,e,g)
+                    4'd12: begin // d (b,c,d,e,g)
+                        if (is_low_gear_mode) begin
+                            // Low Gear Mode일 때는 설정된 Limit 표시 (1, 2, 3)
+                            case (max_gear_limit)
+                                3'd1: seg_1_data = 8'h06; // 1
+                                3'd2: seg_1_data = 8'h5B; // 2
+                                3'd3: seg_1_data = 8'h4F; // 3
+                                default: seg_1_data = 8'h5E; // d
+                            endcase
+                        end else begin
+                            seg_1_data = 8'h5E; // d
+                        end
+                    end
                     default: seg_1_data = 8'h00;
                 endcase
             end

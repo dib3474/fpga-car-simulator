@@ -3,6 +3,8 @@ module Vehicle_Logic (
     input engine_on,
     input tick_1sec, input tick_speed,
     input [3:0] current_gear, // 3:P, 6:R, 9:N, 12:D
+    input is_low_gear_mode, // [추가] Low Gear Mode
+    input [2:0] max_gear_limit, // [추가] Max Gear Limit
     input [7:0] adc_accel,
     input is_brake_normal, input is_brake_hard,
     
@@ -97,7 +99,7 @@ module Vehicle_Logic (
                     // 후진 속도 제한 (50km/h)
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 가속 불가
-                    end else if (speed < 250) begin // [수정] 하드 클램프 제거 (저항으로 제어)
+                    end else if (speed < 250 && rpm < 7900) begin // [수정] RPM Redline 제한 추가
                         speed <= speed + 1;
                     end
                 end 
@@ -128,15 +130,39 @@ module Vehicle_Logic (
         
         // --- D, R 상태 (주행 중) ---
         else begin 
-            // [수정] 경제 운전 모드: 변속 시점을 약 2500 RPM 부근으로 설정
-            // 180km/h 최고 속도 기준 6단 변속
-            if (speed < 30) begin base_rpm = IDLE_RPM + (speed * 60); gear_num = 1; end       // 1단
-            else if (speed < 60) begin base_rpm = 1500 + ((speed - 30) * 35); gear_num = 2; end     // 2단
-            else if (speed < 90) begin base_rpm = 1500 + ((speed - 60) * 35); gear_num = 3; end     // 3단
-            else if (speed < 120) begin base_rpm = 1600 + ((speed - 90) * 30); gear_num = 4; end     // 4단
-            else if (speed < 150) begin base_rpm = 1700 + ((speed - 120) * 27); gear_num = 5; end    // 5단
-            else                  begin base_rpm = 1800 + ((speed - 150) * 27); gear_num = 6; end    // 6단
+            // [수정] Low Gear Mode 적용을 위한 로직 변경
+            reg [2:0] target_gear;
             
+            // 1. 속도에 따른 목표 기어 계산 (Auto Logic)
+            if (speed < 30) target_gear = 1;
+            else if (speed < 60) target_gear = 2;
+            else if (speed < 90) target_gear = 3;
+            else if (speed < 120) target_gear = 4;
+            else if (speed < 150) target_gear = 5;
+            else target_gear = 6;
+            
+            // 2. 기어 제한 적용 (DIP_SW[5] ON & D단일 때)
+            if (is_low_gear_mode && current_gear == 4'd12) begin
+                if (target_gear > max_gear_limit) gear_num = max_gear_limit;
+                else gear_num = target_gear;
+            end else begin
+                gear_num = target_gear;
+            end
+            
+            // 3. RPM 계산 (기어별 선형 보간)
+            case (gear_num)
+                1: base_rpm = IDLE_RPM + (speed * 60); 
+                2: base_rpm = 450 + (speed * 35); // 1500 + (speed-30)*35 = 1500 + 35s - 1050 = 450 + 35s
+                3: base_rpm = (speed * 35) - 600; // 1500 + (speed-60)*35 = 1500 + 35s - 2100 = 35s - 600
+                4: base_rpm = (speed * 30) - 1100; // 1600 + (speed-90)*30 = 1600 + 30s - 2700 = 30s - 1100
+                5: base_rpm = (speed * 27) - 1540; // 1700 + (speed-120)*27 = 1700 + 27s - 3240 = 27s - 1540
+                6: base_rpm = (speed * 27) - 2250; // 1800 + (speed-150)*27 = 1800 + 27s - 4050 = 27s - 2250
+                default: base_rpm = IDLE_RPM;
+            endcase
+            
+            // Underflow 방지 (음수가 될 경우 0 처리)
+            if (base_rpm > 10000) base_rpm = IDLE_RPM; // 14bit overflow check (simple)
+
             // [수정] RPM에 부하(Throttle) 및 노이즈 반영
             // 가속 페달을 밟으면 RPM이 더 오름 (토크 컨버터 슬립 효과) + Jitter
             rpm = base_rpm + (effective_accel * 2) + rpm_jitter;

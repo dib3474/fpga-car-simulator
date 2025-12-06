@@ -215,10 +215,11 @@ module Sound_Unit (
         if (engine_on) begin
             // Simple RPM to Period mapping (Linear approximation)
             // Higher RPM -> Lower Period -> Higher Pitch
-            // Base (0 RPM) -> ~300,000 (83Hz)
-            // Max (8000 RPM) -> 300,000 - 240,000 = 60,000 (416Hz)
-            if (rpm > 9000) engine_period <= 60000; // Safety clamp
-            else engine_period <= 300000 - (rpm * 30);
+            // [Modified] Lower base frequency and wider range for better feedback
+            // Base (0 RPM) -> ~500,000 (50Hz)
+            // Max (8000 RPM) -> 500,000 - 400,000 = 100,000 (250Hz)
+            if (rpm > 9000) engine_period <= 100000; // Safety clamp
+            else engine_period <= 500000 - (rpm * 50);
 
             if (engine_cnt >= engine_period) begin
                 engine_cnt <= 0;

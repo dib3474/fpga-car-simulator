@@ -96,21 +96,55 @@ module Car_Simulator_Top (
     always @(*) engine_on = (power_state == STATE_RUN);
     
     // --- 기어 변경 ---
+    reg [2:0] max_gear_limit = 3'd3; // [추가] Low Gear Limit (1~3)
+    reg prev_key_6, prev_key_sharp;
+
     always @(posedge CLK or posedge global_safe_rst) begin
-        if (global_safe_rst) gear_reg <= 4'd3;
+        if (global_safe_rst) begin
+            gear_reg <= 4'd3;
+            max_gear_limit <= 3'd3;
+            prev_key_6 <= 0; prev_key_sharp <= 0;
+        end
         else begin
+            prev_key_6 <= KEY_6;
+            prev_key_sharp <= KEY_SHARP;
+
             if (KEY_3) gear_reg <= 4'd3;      // P
-            else if (KEY_6) begin             
-                if (spd_w == 0) gear_reg <= 4'd6; // R
-            end
             else if (KEY_9) gear_reg <= 4'd9; // N
-            else if (KEY_SHARP) gear_reg <= 4'd12; // D
+            
+            // DIP_SW[5] ON: Low Gear Mode (기어 제한 설정)
+            else if (DIP_SW[5]) begin
+                // Key 6: Limit 증가 (Max 3)
+                if (KEY_6 && !prev_key_6) begin
+                    if (max_gear_limit < 3) max_gear_limit <= max_gear_limit + 1;
+                end
+                // Key #: Limit 감소 (Min 1)
+                else if (KEY_SHARP && !prev_key_sharp) begin
+                    if (max_gear_limit > 1) max_gear_limit <= max_gear_limit - 1;
+                end
+            end
+            // DIP_SW[5] OFF: 일반 모드 (변속 가능)
+            else begin
+                if (KEY_6) begin             
+                    if (spd_w == 0) gear_reg <= 4'd6; // R
+                end
+                else if (KEY_SHARP) gear_reg <= 4'd12; // D
+            end
         end
     end
 
     wire [2:0] gear_num_w; // [추가] 기어 단수 와이어
 
-    Vehicle_Logic u_logic (.clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), .tick_1sec(tick_1s), .tick_speed(tick_spd), .current_gear(gear_reg), .adc_accel(adc_accel_w), .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), .ess_trigger(ess_trig), .gear_num(gear_num_w));
+    Vehicle_Logic u_logic (
+        .clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), 
+        .tick_1sec(tick_1s), .tick_speed(tick_spd), 
+        .current_gear(gear_reg), 
+        .is_low_gear_mode(DIP_SW[5]), .max_gear_limit(max_gear_limit), // [추가]
+        .adc_accel(adc_accel_w), 
+        .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), 
+        .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), 
+        .ess_trigger(ess_trig), .gear_num(gear_num_w)
+    );
     
     // --- LED & LCD 제어 ---
     wire [7:0] led_logic_out;
@@ -170,6 +204,7 @@ module Car_Simulator_Top (
         
         .gear_char(gear_reg), // 기어는 항상 연결
         .gear_num(gear_num_w), // [추가] 기어 단수 연결
+        .is_low_gear_mode(DIP_SW[5]), .max_gear_limit(max_gear_limit), // [추가]
         
         .seg_data(SEG_DATA), 
         .seg_com(SEG_COM), 
