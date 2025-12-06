@@ -129,7 +129,16 @@ module Vehicle_Logic (
     // 2. RPM 계산 (P/N 리미터 및 6단 자동 변속 시뮬레이션)
     // =========================================================
     always @(*) begin
-        if (!engine_on) rpm = 0;
+        // [Latch 방지] 모든 변수의 기본값 설정
+        rpm = 0;
+        gear_num = 1;
+        target_gear = 1;
+        calc_rpm = 0;
+        base_rpm = IDLE_RPM;
+
+        if (!engine_on) begin
+            rpm = 0;
+        end
         
         // --- [수정] P, N 상태 (공회전) ---
         else if (current_gear == 4'd3 || current_gear == 4'd9) begin 
