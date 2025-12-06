@@ -108,7 +108,9 @@ module Car_Simulator_Top (
         end
     end
 
-    Vehicle_Logic u_logic (.clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), .tick_1sec(tick_1s), .tick_speed(tick_spd), .current_gear(gear_reg), .adc_accel(adc_accel_w), .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), .ess_trigger(ess_trig));
+    wire [2:0] gear_num_w; // [추가] 기어 단수 와이어
+
+    Vehicle_Logic u_logic (.clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), .tick_1sec(tick_1s), .tick_speed(tick_spd), .current_gear(gear_reg), .adc_accel(adc_accel_w), .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), .ess_trigger(ess_trig), .gear_num(gear_num_w));
     
     // --- LED & LCD 제어 ---
     wire [7:0] led_logic_out;
@@ -167,6 +169,7 @@ module Car_Simulator_Top (
         .temp(temp_w), // 온도도 ACC에서 보임
         
         .gear_char(gear_reg), // 기어는 항상 연결
+        .gear_num(gear_num_w), // [추가] 기어 단수 연결
         
         .seg_data(SEG_DATA), 
         .seg_com(SEG_COM), 

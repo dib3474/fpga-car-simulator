@@ -9,6 +9,7 @@ module Display_Unit (
     input [7:0] temp, 
     // input [7:0] accel,   // [삭제] 악셀 강도 제거
     input [3:0] gear_char, 
+    input [2:0] gear_num, // [추가] 현재 기어 단수 (1~6)
     
     // 8-Digit 7-Segment
     output reg [7:0] seg_data = 0, 
@@ -120,16 +121,31 @@ module Display_Unit (
     // --- 4. 1-Digit Output (Gear) ---
     // [수정] 8-Digit와 동일한 비트 순서(LSB=a)로 코드값 변경
     // P(0x73), r(0x50), n(0x54), d(0x5E)
+    // OBD 모드이고 D단일 때 기어 단수(1~6) 표시
     always @(*) begin
         if (rst) seg_1_data = 8'h00;
         else begin
-            case (gear_char)
-                4'd3:  seg_1_data = 8'h73; // P (a,b,e,f,g)
-                4'd6:  seg_1_data = 8'h50; // r (e,g)
-                4'd9:  seg_1_data = 8'h54; // n (c,e,g)
-                4'd12: seg_1_data = 8'h5E; // d (b,c,d,e,g)
-                default: seg_1_data = 8'h00;
-            endcase
+            if (obd_mode_sw && gear_char == 4'd12) begin
+                // OBD 모드 & D단 -> 기어 단수 표시
+                case (gear_num)
+                    3'd1: seg_1_data = 8'b0000_0110; // 1
+                    3'd2: seg_1_data = 8'b0101_1011; // 2
+                    3'd3: seg_1_data = 8'b0100_1111; // 3
+                    3'd4: seg_1_data = 8'b0110_0110; // 4
+                    3'd5: seg_1_data = 8'b0110_1101; // 5
+                    3'd6: seg_1_data = 8'b0111_1101; // 6
+                    default: seg_1_data = 8'b0000_0000;
+                endcase
+            end else begin
+                // 일반 모드 또는 P/R/N -> 문자 표시
+                case (gear_char)
+                    4'd3:  seg_1_data = 8'hCE; // P
+                    4'd6:  seg_1_data = 8'h0A; // r
+                    4'd9:  seg_1_data = 8'h2A; // n
+                    4'd12: seg_1_data = 8'h7A; // d
+                    default: seg_1_data = 8'h00;
+                endcase
+            end
         end
     end
 

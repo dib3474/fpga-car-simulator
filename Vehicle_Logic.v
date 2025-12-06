@@ -11,7 +11,8 @@ module Vehicle_Logic (
     output reg [7:0] fuel = 100,
     output reg [7:0] temp = 25,      // 초기 온도: 상온 25도
     output reg [31:0] odometer_raw = 0, // 총 주행 거리 (단위: 미터)
-    output reg ess_trigger = 0
+    output reg ess_trigger = 0,
+    output reg [2:0] gear_num = 1 // [추가] 현재 기어 단수 (1~6)
 );
     parameter IDLE_RPM = 800;
     
@@ -20,8 +21,13 @@ module Vehicle_Logic (
     reg [9:0] resistance; // 공기/바닥 저항
     
     // [개선] 불감대(Dead Zone) 적용: 노이즈 제거
+    // 속도 제어용 (노이즈로 인한 미세 전진 방지)
     wire [7:0] effective_accel;
     assign effective_accel = (adc_accel > 5) ? (adc_accel - 5) : 8'd0;
+    
+    // RPM 표시용 (데드존 없이 원본 값 사용 -> 미세한 떨림 표현)
+    wire [7:0] rpm_accel;
+    assign rpm_accel = adc_accel;
 
     // 계산용 임시 변수
     reg [13:0] calc_rpm; 
@@ -45,7 +51,8 @@ module Vehicle_Logic (
             else power = 0; // P, N: 동력 전달 안됨
 
             // B. 저항(Resistance) 계산 (속도가 빠를수록 저항 증가)
-            resistance = speed + 5;
+            // [수정] 180km/h 이상에서 공기 저항 급증 (최고 속도 제한 효과 + 떨림 구현)
+            resistance = speed + 5 + ((speed >= 180) ? 100 : 0);
 
             // C. 속도 갱신 로직
             if (is_brake_hard) begin 
@@ -82,7 +89,7 @@ module Vehicle_Logic (
                     // 후진 속도 제한 (50km/h)
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 가속 불가
-                    end else if (speed < 180) begin // [수정] 최고 속도 180km/h 제한
+                    end else if (speed < 250) begin // [수정] 하드 클램프 제거 (저항으로 제어)
                         speed <= speed + 1;
                     end
                 end 
@@ -102,8 +109,8 @@ module Vehicle_Logic (
         
         // --- [수정] P, N 상태 (공회전) ---
         else if (current_gear == 4'd3 || current_gear == 4'd9) begin 
-            // 가상 RPM 계산
-            calc_rpm = IDLE_RPM + (effective_accel * 20);
+            // 가상 RPM 계산 (데드존 없는 rpm_accel 사용)
+            calc_rpm = IDLE_RPM + (rpm_accel * 20);
             
             // [Rev Limiter] P단 풀악셀 시 엔진 보호를 위해 4000 RPM 제한
             if (calc_rpm > 4000) rpm = 4000;
@@ -114,12 +121,17 @@ module Vehicle_Logic (
         else begin 
             // [수정] 경제 운전 모드: 변속 시점을 약 2500 RPM 부근으로 설정
             // 180km/h 최고 속도 기준 6단 변속
-            if (speed < 30)       rpm = IDLE_RPM + (speed * 60);        // 1단 (0~30) -> Max ~2600
-            else if (speed < 60)  rpm = 1500 + ((speed - 30) * 35);     // 2단 (30~60) -> Max ~2550
-            else if (speed < 90)  rpm = 1500 + ((speed - 60) * 35);     // 3단 (60~90) -> Max ~2550
-            else if (speed < 120) rpm = 1600 + ((speed - 90) * 30);     // 4단 (90~120) -> Max ~2500
-            else if (speed < 150) rpm = 1700 + ((speed - 120) * 27);    // 5단 (120~150) -> Max ~2510
-            else                  rpm = 1800 + ((speed - 150) * 27);    // 6단 (150~180) -> Max ~2610
+            reg [13:0] base_rpm;
+            if (speed < 30) begin base_rpm = IDLE_RPM + (speed * 60); gear_num = 1; end       // 1단
+            else if (speed < 60) begin base_rpm = 1500 + ((speed - 30) * 35); gear_num = 2; end     // 2단
+            else if (speed < 90) begin base_rpm = 1500 + ((speed - 60) * 35); gear_num = 3; end     // 3단
+            else if (speed < 120) begin base_rpm = 1600 + ((speed - 90) * 30); gear_num = 4; end     // 4단
+            else if (speed < 150) begin base_rpm = 1700 + ((speed - 120) * 27); gear_num = 5; end    // 5단
+            else                  begin base_rpm = 1800 + ((speed - 150) * 27); gear_num = 6; end    // 6단
+            
+            // [수정] RPM에 부하(Throttle) 및 노이즈 반영
+            // 가속 페달을 밟으면 RPM이 더 오름 (토크 컨버터 슬립 효과)
+            rpm = base_rpm + (effective_accel * 2);
             
             // 주행 중 레드존 제한 (8000 RPM)
             if (rpm > 8000) rpm = 8000;
