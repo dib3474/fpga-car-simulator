@@ -147,12 +147,24 @@ module Vehicle_Logic (
             // [수정] Low Gear Mode 적용을 위한 로직 변경
             
             // 1. 속도에 따른 목표 기어 계산 (Auto Logic)
-            if (speed < 30) target_gear = 1;
-            else if (speed < 60) target_gear = 2;
-            else if (speed < 90) target_gear = 3;
-            else if (speed < 120) target_gear = 4;
-            else if (speed < 150) target_gear = 5;
-            else target_gear = 6;
+            // [수정] Gliding Logic: 악셀을 뗐을 때(Coasting)는 기어를 최대한 유지 (Downshift 임계값 낮춤)
+            if (effective_accel == 0) begin
+                // Coasting Mode (Gliding)
+                if (speed < 20) target_gear = 1;
+                else if (speed < 50) target_gear = 2;
+                else if (speed < 75) target_gear = 3;
+                else if (speed < 100) target_gear = 4;
+                else if (speed < 125) target_gear = 5;
+                else target_gear = 6;
+            end else begin
+                // Normal Driving Mode
+                if (speed < 30) target_gear = 1;
+                else if (speed < 60) target_gear = 2;
+                else if (speed < 90) target_gear = 3;
+                else if (speed < 120) target_gear = 4;
+                else if (speed < 150) target_gear = 5;
+                else target_gear = 6;
+            end
             
             // 2. 기어 제한 적용 (DIP_SW[5] ON & D단일 때)
             if (is_low_gear_mode && current_gear == 4'd12) begin
