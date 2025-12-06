@@ -25,6 +25,9 @@ module Vehicle_Logic (
 
     reg [13:0] calc_rpm; 
 
+    // [수정] 에러 원인이던 변수 선언을 여기로 이동했습니다.
+    reg [15:0] drain_amount; 
+
     // =========================================================
     // 1. 물리 엔진 (속도/가속도)
     // =========================================================
@@ -111,17 +114,16 @@ module Vehicle_Logic (
             temp_timer <= 0;
             dist_cm_acc <= 0;
             fuel_accum <= 0;
+            drain_amount <= 0;
         end
         else if (tick_1sec) begin
-            // --- [거리 계산 로직 수정] ---
-            // 속도(km/h)를 바로 더하는 게 아니라, "1초 동안 이동한 거리(cm)"를 더합니다.
-            // 1 km/h = 1000m / 3600s = 0.2777 m/s = 약 27.77 cm/s
-            // 즉, (현재 속도 * 28) cm 만큼 이동한 것입니다. 절대 그냥 더하는 게 아닙니다!
+            // --- [거리 계산 로직] ---
+            // 1초당 이동 거리(cm) = 속도(km/h) * 27.77... 
             if (engine_on && speed > 0) begin
-                dist_cm_acc <= dist_cm_acc + (speed * 28); // cm 단위 적분
+                dist_cm_acc <= dist_cm_acc + (speed * 28); 
                 
                 if (dist_cm_acc >= 100) begin
-                    odometer_raw <= odometer_raw + (dist_cm_acc / 100); // 100cm -> 1m 증가
+                    odometer_raw <= odometer_raw + (dist_cm_acc / 100); 
                     dist_cm_acc <= dist_cm_acc % 100;
                 end
             end
@@ -146,9 +148,9 @@ module Vehicle_Logic (
             end
         end
         
-        // --- [연료 소비 로직 수정] tick_speed(약 0.05초)마다 계산 ---
+        // --- [연료 소비 로직] tick_speed(약 0.05초)마다 계산 ---
         else if (tick_speed && engine_on) begin
-            reg [15:0] drain_amount;
+            // [수정] 변수 선언 제거 (위로 이동됨)
             drain_amount = 0;
 
             // 1. 공회전 기본 소모
