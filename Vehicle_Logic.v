@@ -35,6 +35,7 @@ module Vehicle_Logic (
     // 계산용 임시 변수
     reg [13:0] calc_rpm; 
     reg [13:0] base_rpm; 
+    reg [2:0] target_gear; // [추가] 변속 로직용 임시 변수 
 
     // [추가] RPM Jitter (0~3) - 엔진 진동 시뮬레이션
     reg [1:0] rpm_jitter;
@@ -103,7 +104,16 @@ module Vehicle_Logic (
                     // 후진 속도 제한 (50km/h)
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 가속 불가
-                    end else if (speed < 250 && rpm < 7900) begin // [수정] RPM Redline 제한 추가
+                    end 
+                    // [추가] Low Gear Mode 속도 제한 (RPM Redline 도달 시 가속 차단)
+                    // 1단: ~30km/h, 2단: ~60km/h, 3단: ~90km/h
+                    else if (is_low_gear_mode && current_gear == 4'd12) begin
+                        if (max_gear_limit == 1 && speed >= 35) begin /* Limit */ end
+                        else if (max_gear_limit == 2 && speed >= 65) begin /* Limit */ end
+                        else if (max_gear_limit == 3 && speed >= 95) begin /* Limit */ end
+                        else if (speed < 250 && rpm < 7900) speed <= speed + 1;
+                    end
+                    else if (speed < 250 && rpm < 7900) begin // [수정] RPM Redline 제한 추가
                         speed <= speed + 1;
                     end
                 end 
@@ -135,7 +145,6 @@ module Vehicle_Logic (
         // --- D, R 상태 (주행 중) ---
         else begin 
             // [수정] Low Gear Mode 적용을 위한 로직 변경
-            reg [2:0] target_gear;
             
             // 1. 속도에 따른 목표 기어 계산 (Auto Logic)
             if (speed < 30) target_gear = 1;
@@ -238,10 +247,13 @@ module Vehicle_Logic (
                 end 
                 // 냉각 요인: 저부하 주행 시 90도로 복귀
                 else if (temp > 90) begin
-                    temp_acc <= 0; // 가열 멈춤
-                    // 자연 냉각은 아래 로직에서 처리하거나 여기서 감소
-                    if (temp_acc == 0) begin // 쿨링 타이머 대용
-                         // 천천히 식음
+                    // 가열 멈춤 (temp_acc 리셋)
+                    // 90도 초과 시 천천히 식음 (쿨링 팬/라디에이터 효과)
+                    if (temp_acc >= 20) begin
+                        temp <= temp - 1;
+                        temp_acc <= 0;
+                    end else begin
+                        temp_acc <= temp_acc + 1;
                     end
                 end
                 else if (temp < 90) begin
@@ -249,8 +261,10 @@ module Vehicle_Logic (
                     temp_acc <= temp_acc + 1;
                 end
                 
-                // 온도 업데이트 (누적기 기반)
-                if (temp_acc >= 10) begin // 속도 조절
+                // 온도 업데이트 (가열 로직)
+                // 위에서 temp_acc가 증가했을 때, 10에 도달하면 온도 상승
+                // 단, 냉각 모드(temp > 90)일 때는 위에서 처리했으므로 여기서는 무시해야 함
+                if (temp <= 90 && temp_acc >= 10) begin 
                     temp <= temp + 1;
                     temp_acc <= 0;
                 end

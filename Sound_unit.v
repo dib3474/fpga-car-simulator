@@ -126,10 +126,14 @@ module Sound_Unit (
     
     always @(posedge clk) begin
         if (reverse_melody_active && current_tone_period > 0) begin
-            if (reverse_tone_cnt >= current_tone_period) begin 
+            // [Volume Control] Use Low Duty Cycle instead of 50%
+            // Count up to full period (current_tone_period * 2)
+            if (reverse_tone_cnt >= (current_tone_period << 1)) begin 
                 reverse_tone_cnt <= 0;
-                reverse_wave <= ~reverse_wave;
             end else reverse_tone_cnt <= reverse_tone_cnt + 1;
+            
+            // Output High for 1/8 of the period (12.5% Duty Cycle)
+            reverse_wave <= (reverse_tone_cnt < (current_tone_period >> 2));
         end else begin
             reverse_wave <= 0;
             reverse_tone_cnt <= 0;
@@ -171,14 +175,18 @@ module Sound_Unit (
     
     reg [15:0] click_tone_cnt;
     reg click_wave;
+    wire [15:0] click_limit = (is_tick ? 12500 : 15625);
+
     // Two-tone for Click (Tick: 2kHz, Tock: 1.6kHz)
     always @(posedge clk) begin
         if (click_sound_active) begin
-            // 2kHz -> 12500, 1.6kHz -> 15625
-            if (click_tone_cnt >= (is_tick ? 12500 : 15625)) begin 
+            // [Volume Control] Low Duty Cycle
+            if (click_tone_cnt >= (click_limit << 1)) begin 
                 click_tone_cnt <= 0;
-                click_wave <= ~click_wave;
             end else click_tone_cnt <= click_tone_cnt + 1;
+            
+            // 12.5% Duty Cycle
+            click_wave <= (click_tone_cnt < (click_limit >> 2));
         end else begin
             click_wave <= 0;
             click_tone_cnt <= 0;
@@ -193,11 +201,13 @@ module Sound_Unit (
     
     always @(posedge clk) begin
         if (is_horn) begin
-            // 400Hz Low Tone
-            if (horn_cnt >= 62500) begin
+            // 400Hz Low Tone -> Period 125,000
+            if (horn_cnt >= 125000) begin
                 horn_cnt <= 0;
-                horn_wave <= ~horn_wave;
             end else horn_cnt <= horn_cnt + 1;
+            
+            // [Volume Control] 25% Duty Cycle (Horn is louder)
+            horn_wave <= (horn_cnt < 31250);
         end else begin
             horn_wave <= 0;
             horn_cnt <= 0;
@@ -221,12 +231,15 @@ module Sound_Unit (
             if (rpm > 9000) engine_period <= 100000; // Safety clamp
             else engine_period <= 500000 - (rpm * 50);
 
-            if (engine_cnt >= engine_period) begin
+            // [Volume Control] Very Low Duty Cycle for Engine (Subtle background)
+            if (engine_cnt >= (engine_period << 1)) begin
                 engine_cnt <= 0;
-                engine_wave <= ~engine_wave;
             end else begin
                 engine_cnt <= engine_cnt + 1;
             end
+            
+            // 6.25% Duty Cycle (Shift 4)
+            engine_wave <= (engine_cnt < (engine_period >> 3));
         end else begin
             engine_wave <= 0;
             engine_cnt <= 0;
