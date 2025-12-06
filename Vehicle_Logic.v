@@ -5,6 +5,7 @@ module Vehicle_Logic (
     input [3:0] current_gear, // 3:P, 6:R, 9:N, 12:D
     input is_low_gear_mode, // [추가] Low Gear Mode
     input [2:0] max_gear_limit, // [추가] Max Gear Limit
+    input is_side_brake, // [추가] 사이드 브레이크
     input [7:0] adc_accel,
     input is_brake_normal, input is_brake_hard,
     
@@ -63,6 +64,9 @@ module Vehicle_Logic (
             // B. 저항(Resistance) 계산 (속도가 빠를수록 저항 증가)
             // [수정] 180km/h 이상에서 공기 저항 급증 (최고 속도 제한 효과 + 떨림 구현)
             resistance = speed + 5 + ((speed >= 180) ? 100 : 0);
+            
+            // [추가] 사이드 브레이크 저항 (매우 강력한 저항)
+            if (is_side_brake) resistance = resistance + 50;
 
             // C. 속도 갱신 로직
             if (is_brake_hard) begin 
@@ -175,74 +179,91 @@ module Vehicle_Logic (
     // =========================================================
     // 3. OBD 데이터 (연료, 온도, 거리) - [현실적 물리 적용]
     // =========================================================
-    reg [1:0] fuel_timer;
-    reg [2:0] temp_timer;     // 온도 변화 속도 조절용
-    reg [15:0] dist_cm_acc;   // 거리 정밀 계산용 (cm 단위 누적)
+    reg [15:0] fuel_acc;      // 연료 소모 누적기
+    reg [15:0] temp_acc;      // 온도 변화 누적기
+    reg [31:0] dist_m_acc;    // 거리 정밀 계산용 (미터 단위 누적)
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin 
             fuel <= 100;
             temp <= 25;       // 초기값: 상온 25도
             odometer_raw <= 0; 
-            fuel_timer <= 0;
-            temp_timer <= 0;
-            dist_cm_acc <= 0;
+            fuel_acc <= 0;
+            temp_acc <= 0;
+            dist_m_acc <= 0;
         end
         else if (tick_1sec) begin
             
             // --- [A. 거리 계산 로직 (Physics Based)] ---
-            // 공식: 1 km/h = 초당 약 27.77cm 이동
-            // 1초마다 (현재속도 * 28)cm 만큼 이동했다고 가정
+            // 공식: 1 km/h = 초당 약 27.77cm 이동 -> 1초에 0.2777m
+            // 기존 로직은 1m마다 odometer를 1씩 올렸는데, odometer 단위가 km라면 1000m마다 올려야 함.
+            // [수정] odometer_raw 단위를 km로 가정하고, 1000m(1km) 누적 시 +1
+            // 1 km/h = 1000m / 3600s = 0.2777... m/s
+            // 계산 편의를 위해: speed * 278 (단위: mm) -> 1,000,000 mm = 1 km
             if (engine_on && speed > 0) begin
-                dist_cm_acc <= dist_cm_acc + (speed * 28);
+                dist_m_acc <= dist_m_acc + (speed * 278); // mm 단위 누적
                 
-                // 100cm(1m)가 쌓이면 미터기(odometer) +1 증가
-                if (dist_cm_acc >= 100) begin
-                    odometer_raw <= odometer_raw + (dist_cm_acc / 100);
-                    dist_cm_acc <= dist_cm_acc % 100;
+                // 1,000,000 mm = 1 km
+                if (dist_m_acc >= 1_000_000) begin
+                    odometer_raw <= odometer_raw + 1;
+                    dist_m_acc <= dist_m_acc - 1_000_000;
                 end
             end
 
-            // --- [B. 연료 소비 로직] ---
-            if (engine_on && (speed > 0 || rpm > 1000)) begin
-                if (fuel_timer >= 2) begin // 약 3초마다 1% 감소
+            // --- [B. 연료 소비 로직 (RPM + Load)] ---
+            // 공회전: 기본 소모
+            // 고RPM/가속: 추가 소모
+            if (engine_on) begin
+                // 소모량 계산: 기본(10) + RPM비례(rpm/100) + 가속비례(accel)
+                // 예: 800rpm -> 10+8=18, 3000rpm -> 10+30=40
+                fuel_acc <= fuel_acc + 10 + (rpm / 100) + effective_accel;
+                
+                // 누적치가 일정 수준(예: 5000) 넘으면 연료 1% 감소
+                if (fuel_acc >= 5000) begin
                     if (fuel > 0) fuel <= fuel - 1;
-                    fuel_timer <= 0;
-                end else begin
-                    fuel_timer <= fuel_timer + 1;
+                    fuel_acc <= 0;
                 end
             end
 
             // --- [C. 엔진 온도 로직 (Thermostat Simulation)] ---
             // 엔진은 90도(적정 온도)를 유지하려 하고, RPM이 높으면 과열됨
             if (engine_on) begin
-                if (temp_timer >= 1) begin // 2초마다 갱신
-                    temp_timer <= 0;
-                    
-                    if (rpm > 5000) begin
-                        // [과열 구간] 레드존 주행 시 냉각 한계 초과 -> 온도 상승
-                        if (temp < 130) temp <= temp + 1;
-                    end 
-                    else if (temp < 90) begin
-                        // [워밍업] 90도까지 상승
-                        if (rpm > 2000) temp <= temp + 2; // 고부하 시 빨리 오름
-                        else temp <= temp + 1;            // 공회전 시 천천히 오름
+                // 목표 온도 계산: 기본 90도 + 부하(RPM/100)
+                // 예: 2000rpm -> 110도 타겟(팬이 돌아서 90 유지하려 함)
+                // 실제로는 천천히 변함
+                
+                // 가열 요인: RPM이 높거나 가속 중일 때
+                if (rpm > 2500 || effective_accel > 50) begin
+                    if (temp < 130) temp_acc <= temp_acc + 1;
+                end 
+                // 냉각 요인: 저부하 주행 시 90도로 복귀
+                else if (temp > 90) begin
+                    temp_acc <= 0; // 가열 멈춤
+                    // 자연 냉각은 아래 로직에서 처리하거나 여기서 감소
+                    if (temp_acc == 0) begin // 쿨링 타이머 대용
+                         // 천천히 식음
                     end
-                    else if (temp >= 90) begin
-                        // [써모스탯 작동] 90~95도 유지
-                        if (temp > 95) temp <= temp - 1; // 팬 작동으로 냉각
-                    end
-                end else begin
-                    temp_timer <= temp_timer + 1;
+                end
+                else if (temp < 90) begin
+                    // 워밍업
+                    temp_acc <= temp_acc + 1;
+                end
+                
+                // 온도 업데이트 (누적기 기반)
+                if (temp_acc >= 10) begin // 속도 조절
+                    temp <= temp + 1;
+                    temp_acc <= 0;
+                end
+                
+                // 과열 방지 (팬 동작 시뮬레이션): 95도 넘으면 강제 냉각
+                if (temp > 95) begin
+                    if (rpm < 3000) temp <= temp - 1; // 고부하 아니면 식음
                 end
             end 
             else begin
                 // [냉각] 시동 OFF 시 자연 냉각 (상온 25도까지)
-                if (temp_timer >= 2) begin // 3초마다 1도 하강
-                    temp_timer <= 0;
-                    if (temp > 25) temp <= temp - 1;
-                end else begin
-                    temp_timer <= temp_timer + 1;
+                if (temp > 25) begin
+                    temp <= temp - 1;
                 end
             end
         end

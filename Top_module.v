@@ -139,7 +139,8 @@ module Car_Simulator_Top (
         .clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), 
         .tick_1sec(tick_1s), .tick_speed(tick_spd), 
         .current_gear(gear_reg), 
-        .is_low_gear_mode(DIP_SW[5]), .max_gear_limit(max_gear_limit), // [추가]
+        .is_low_gear_mode(DIP_SW[5]), .max_gear_limit(max_gear_limit), 
+        .is_side_brake(DIP_SW[6]), // [추가] 사이드 브레이크 연결
         .adc_accel(adc_accel_w), 
         .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), 
         .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), 
