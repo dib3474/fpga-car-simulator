@@ -22,6 +22,7 @@ module Vehicle_Logic (
     // 물리 연산을 위한 변수
     reg [9:0] power;      // 엔진 힘
     reg [9:0] resistance; // 공기/바닥 저항
+    reg [4:0] decel_counter; // [추가] 감속 속도 조절용 카운터
     
     // [개선] 불감대(Dead Zone) 적용: 노이즈 제거
     // 속도 제어용 (노이즈로 인한 미세 전진 방지)
@@ -51,6 +52,8 @@ module Vehicle_Logic (
         if (rst) begin 
             speed <= 0;
             ess_trigger <= 0; 
+            decel_counter <= 0;
+            gear_num <= 1;
         end
         else if (!engine_on) begin 
             speed <= 0; 
@@ -101,6 +104,7 @@ module Vehicle_Logic (
                 
                 // 가속 (Power > Resistance)
                 if (power > resistance) begin
+                    decel_counter <= 0; // [추가] 가속 시 감속 카운터 리셋
                     // 후진 속도 제한 (50km/h)
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 가속 불가
@@ -119,7 +123,70 @@ module Vehicle_Logic (
                 end 
                 // 자연 감속 (Power < Resistance)
                 else if (power < resistance) begin
-                    if (speed > 0) speed <= speed - 1;
+                    // [수정] 기어별 감속 비율 적용 (계단식 감속)
+                    decel_counter <= decel_counter + 1;
+                    
+                    if (speed > 0) begin
+                        case (gear_num)
+                            6: if (decel_counter >= 20) begin speed <= speed - 1; decel_counter <= 0; end
+                            5: if (decel_counter >= 15) begin speed <= speed - 1; decel_counter <= 0; end
+                            4: if (decel_counter >= 10) begin speed <= speed - 1; decel_counter <= 0; end
+                            3: if (decel_counter >= 6) begin speed <= speed - 1; decel_counter <= 0; end
+                            2: if (decel_counter >= 3) begin speed <= speed - 1; decel_counter <= 0; end
+                            1: if (decel_counter >= 1) begin speed <= speed - 1; decel_counter <= 0; end
+                            default: begin speed <= speed - 1; decel_counter <= 0; end
+                        endcase
+                    end
+                end
+                else begin
+                    decel_counter <= 0;
+                end
+
+                // =========================================================
+                // [추가] 기어 변속 로직 (Hysteresis 적용)
+                // =========================================================
+                if (current_gear == 4'd12) begin // D단
+                    if (effective_accel == 0) begin
+                        // Gliding Mode (기존 로직 유지 - 낮은 RPM에서 다운쉬프트)
+                        if (speed < 20) gear_num <= 1;
+                        else if (speed < 50) gear_num <= 2;
+                        else if (speed < 75) gear_num <= 3;
+                        else if (speed < 100) gear_num <= 4;
+                        else if (speed < 125) gear_num <= 5;
+                        else gear_num <= 6;
+                    end else begin
+                        // Normal Mode (Hysteresis 적용)
+                        // Upshift: ~2400 RPM, Downshift: ~1200 RPM
+                        case (gear_num)
+                            1: if (speed >= 27) gear_num <= 2;
+                            2: begin
+                                if (speed < 21) gear_num <= 1;
+                                else if (speed >= 56) gear_num <= 3;
+                            end
+                            3: begin
+                                if (speed < 51) gear_num <= 2;
+                                else if (speed >= 86) gear_num <= 4;
+                            end
+                            4: begin
+                                if (speed < 77) gear_num <= 3;
+                                else if (speed >= 117) gear_num <= 5;
+                            end
+                            5: begin
+                                if (speed < 101) gear_num <= 4;
+                                else if (speed >= 146) gear_num <= 6;
+                            end
+                            6: begin
+                                if (speed < 128) gear_num <= 5;
+                            end
+                            default: gear_num <= 1;
+                        endcase
+                    end
+                    
+                    // Low Gear Mode 제한
+                    if (is_low_gear_mode && gear_num > max_gear_limit) gear_num <= max_gear_limit;
+                    
+                end else begin
+                    gear_num <= 1; // P, R, N에서는 1단 고정
                 end
             end
         end
@@ -131,8 +198,8 @@ module Vehicle_Logic (
     always @(*) begin
         // [Latch 방지] 모든 변수의 기본값 설정
         rpm = 0;
-        gear_num = 1;
-        target_gear = 1;
+        // gear_num = 1; // [이동] always @(posedge clk)로 이동
+        // target_gear = 1; // [삭제]
         calc_rpm = 0;
         base_rpm = IDLE_RPM;
 
@@ -153,35 +220,7 @@ module Vehicle_Logic (
         
         // --- D, R 상태 (주행 중) ---
         else begin 
-            // [수정] Low Gear Mode 적용을 위한 로직 변경
-            
-            // 1. 속도에 따른 목표 기어 계산 (Auto Logic)
-            // [수정] Gliding Logic: 악셀을 뗐을 때(Coasting)는 기어를 최대한 유지 (Downshift 임계값 낮춤)
-            if (effective_accel == 0) begin
-                // Coasting Mode (Gliding)
-                if (speed < 20) target_gear = 1;
-                else if (speed < 50) target_gear = 2;
-                else if (speed < 75) target_gear = 3;
-                else if (speed < 100) target_gear = 4;
-                else if (speed < 125) target_gear = 5;
-                else target_gear = 6;
-            end else begin
-                // Normal Driving Mode
-                if (speed < 30) target_gear = 1;
-                else if (speed < 60) target_gear = 2;
-                else if (speed < 90) target_gear = 3;
-                else if (speed < 120) target_gear = 4;
-                else if (speed < 150) target_gear = 5;
-                else target_gear = 6;
-            end
-            
-            // 2. 기어 제한 적용 (DIP_SW[5] ON & D단일 때)
-            if (is_low_gear_mode && current_gear == 4'd12) begin
-                if (target_gear > max_gear_limit) gear_num = max_gear_limit;
-                else gear_num = target_gear;
-            end else begin
-                gear_num = target_gear;
-            end
+            // [수정] 기어 변속 로직은 always @(posedge clk)로 이동함
             
             // 3. RPM 계산 (기어별 선형 보간)
             case (gear_num)
