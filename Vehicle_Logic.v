@@ -82,7 +82,7 @@ module Vehicle_Logic (
                     // 후진 속도 제한 (50km/h)
                     if (current_gear == 4'd6 && speed >= 50) begin
                         // 가속 불가
-                    end else if (speed < 250) begin
+                    end else if (speed < 180) begin // [수정] 최고 속도 180km/h 제한
                         speed <= speed + 1;
                     end
                 end 
@@ -112,13 +112,14 @@ module Vehicle_Logic (
         
         // --- D, R 상태 (주행 중) ---
         else begin 
-            // 속도 대역별 기어비 시뮬레이션
-            if (speed < 40)       rpm = IDLE_RPM + (speed * 100);       // 1단
-            else if (speed < 80)  rpm = 1500 + ((speed - 40) * 80);     // 2단
-            else if (speed < 120) rpm = 1500 + ((speed - 80) * 60);     // 3단
-            else if (speed < 160) rpm = 1600 + ((speed - 120) * 50);    // 4단
-            else if (speed < 200) rpm = 1700 + ((speed - 160) * 40);    // 5단
-            else                  rpm = 1800 + ((speed - 200) * 30);    // 6단
+            // [수정] 경제 운전 모드: 변속 시점을 약 2500 RPM 부근으로 설정
+            // 180km/h 최고 속도 기준 6단 변속
+            if (speed < 30)       rpm = IDLE_RPM + (speed * 60);        // 1단 (0~30) -> Max ~2600
+            else if (speed < 60)  rpm = 1500 + ((speed - 30) * 35);     // 2단 (30~60) -> Max ~2550
+            else if (speed < 90)  rpm = 1500 + ((speed - 60) * 35);     // 3단 (60~90) -> Max ~2550
+            else if (speed < 120) rpm = 1600 + ((speed - 90) * 30);     // 4단 (90~120) -> Max ~2500
+            else if (speed < 150) rpm = 1700 + ((speed - 120) * 27);    // 5단 (120~150) -> Max ~2510
+            else                  rpm = 1800 + ((speed - 150) * 27);    // 6단 (150~180) -> Max ~2610
             
             // 주행 중 레드존 제한 (8000 RPM)
             if (rpm > 8000) rpm = 8000;

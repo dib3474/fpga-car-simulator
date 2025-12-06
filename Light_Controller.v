@@ -22,14 +22,14 @@ module Light_Controller (
 );
 
     // 1. 오토라이트 판단 (히스테리시스 적용)
-    // [수정] 센서 감도 조절: 완전히 가려도 깜빡이는 현상 해결
-    // 150 미만이면 켜짐 (기존 100보다 여유 있게), 170 초과면 꺼짐 (채터링 방지)
+    // [수정] 센서 감도 조절: 조건을 완화하여 조금만 어두워도 켜지도록 변경
+    // 200 미만이면 켜짐 (기존 150보다 완화), 220 초과면 꺼짐 (채터링 방지)
     reg is_dark;
     always @(posedge clk or posedge rst) begin
         if (rst) is_dark <= 0;
         else begin
-            if (cds_val < 150) is_dark <= 1;      // 어두움 (ON)
-            else if (cds_val > 170) is_dark <= 0; // 밝음 (OFF)
+            if (cds_val < 200) is_dark <= 1;      // 어두움 (ON)
+            else if (cds_val > 220) is_dark <= 0; // 밝음 (OFF)
         end
     end
 
