@@ -32,12 +32,8 @@ module Car_Simulator_Top (
     assign global_safe_rst = (KEY_8 && (spd_w == 0) && (gear_reg == 4'd3) && KEY_STAR && DIP_SW[7]);
     
     // --- 클럭 및 ADC ---
-    wire [7:0] adc_accel_raw; // ADC 원본 값
     Clock_Gen u_clk (.clk(CLK), .rst(global_safe_rst), .tick_1sec(tick_1s), .tick_speed(tick_spd), .tick_scan(tick_scn));
-    SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_raw), .adc_cds(adc_cds_w));
-
-    // [수정] 연료가 없으면 엑셀 입력을 차단 (0으로 만듦) -> 자연 감속 유도
-    assign adc_accel_w = (fuel_w > 0) ? adc_accel_raw : 8'd0;
+    SPI_ADC_Controller u_adc (.clk(CLK), .rst(global_safe_rst), .spi_sck(SPI_SCK), .spi_cs_n(SPI_AD), .spi_mosi(SPI_DIN), .spi_miso(SPI_DOUT), .adc_accel(adc_accel_w), .adc_cds(adc_cds_w));
 
     assign accel_active = (adc_accel_w > 8'd10);
     
@@ -56,7 +52,6 @@ module Car_Simulator_Top (
     parameter STATE_ACC = 2'd1;
     parameter STATE_RUN = 2'd2;
     reg [1:0] power_state = STATE_OFF;
-    
     reg prev_key_0;
     
     always @(posedge CLK or posedge global_safe_rst) begin
@@ -65,25 +60,20 @@ module Car_Simulator_Top (
             prev_key_0 <= 0;
         end else if (tick_spd) begin 
             prev_key_0 <= KEY_0;
-            if (power_state == STATE_RUN && fuel_w == 0) begin
-                power_state <= STATE_ACC;
-            end
+            if (power_state == STATE_RUN && fuel_w == 0) power_state <= STATE_ACC;
             
             if (KEY_0 && !prev_key_0) begin
                 case (power_state)
                     STATE_OFF: begin
-                        // [시동 조건] 브레이크+P단
                         if (KEY_STAR && gear_reg == 4'd3) begin
                             if (fuel_w > 0) power_state <= STATE_RUN;
                             else power_state <= STATE_ACC;
-                        end
-                        else power_state <= STATE_ACC; // 조건 안맞으면 ACC만 켜짐
+                        end else power_state <= STATE_ACC;
                     end
                     STATE_ACC: begin
                         if (KEY_STAR && gear_reg == 4'd3) begin
                              if (fuel_w > 0) power_state <= STATE_RUN;
-                        end
-                        else power_state <= STATE_OFF;
+                        end else power_state <= STATE_OFF;
                     end
                     STATE_RUN: begin
                         if (spd_w == 0) power_state <= STATE_OFF;
@@ -95,28 +85,64 @@ module Car_Simulator_Top (
 
     always @(*) engine_on = (power_state == STATE_RUN);
     
-    // --- 기어 변경 ---
+    // --- [중요 수정] 기어 변경 로직 (Low 모드 시 키 충돌 방지) ---
+    // KEY_6은 원래 'R'이지만, Low 모드일 땐 'Limit Up'으로 쓰임 -> 변속 막음
+    // KEY_#은 원래 'D'이지만, Low 모드일 땐 'Limit Down'으로 쓰임 -> 변속 막음
+    wire is_low_mode_active = DIP_SW[6];
+
     always @(posedge CLK or posedge global_safe_rst) begin
         if (global_safe_rst) gear_reg <= 4'd3;
         else begin
-            if (KEY_3) gear_reg <= 4'd3;      // P
+            if (KEY_3) gear_reg <= 4'd3;      // P (항상 작동)
+            
             else if (KEY_6) begin             
-                if (spd_w == 0) gear_reg <= 4'd6; // R
+                // [안전장치] Low 모드가 꺼져있을 때만 후진(R) 허용
+                if (!is_low_mode_active) begin
+                    if (spd_w == 0) gear_reg <= 4'd6; 
+                end
             end
-            else if (KEY_9) gear_reg <= 4'd9; // N
-            else if (KEY_SHARP) gear_reg <= 4'd12; // D
+            
+            else if (KEY_9) gear_reg <= 4'd9; // N (항상 작동)
+            
+            else if (KEY_SHARP) begin
+                // [안전장치] Low 모드가 꺼져있을 때만 드라이브(D) 허용
+                // (보통 Low 모드는 D단에서 쓰므로 큰 상관없지만 명확히 분리)
+                if (!is_low_mode_active) begin
+                     gear_reg <= 4'd12;
+                end
+            end
         end
     end
 
-    wire [2:0] gear_num_w; // [추가] 기어 단수 와이어
+    wire [2:0] gear_num_w;
 
-    Vehicle_Logic u_logic (.clk(CLK), .rst(global_safe_rst), .engine_on(engine_on), .tick_1sec(tick_1s), .tick_speed(tick_spd), .current_gear(gear_reg), .adc_accel(adc_accel_w), .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), .ess_trigger(ess_trig), .gear_num(gear_num_w));
+    // =========================================================
+    // ★ Vehicle_Logic 연결 (버튼 매핑 수정)
+    // =========================================================
+    Vehicle_Logic u_logic (
+        .clk(CLK), .rst(global_safe_rst), 
+        .engine_on(engine_on), 
+        .tick_1sec(tick_1s), .tick_speed(tick_spd), 
+        .current_gear(gear_reg), 
+        .adc_accel(adc_accel_w), 
+        .is_brake_normal(KEY_STAR), 
+        .is_brake_hard(KEY_7), 
+        
+        .is_side_brake(DIP_SW[5]), 
+        .is_low_mode(DIP_SW[6]),   
+        
+        // [수정됨] KEY_6(+), KEY_SHARP(-)
+        .btn_gear_up(KEY_6),       
+        .btn_gear_down(KEY_SHARP), 
+        
+        .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), 
+        .odometer_raw(odo_w), .ess_trigger(ess_trig), .gear_num(gear_num_w)
+    );
     
-    // --- LED & LCD 제어 ---
+    // --- LED & LCD & Light ---
     wire [7:0] led_logic_out;
     wire [7:0] lcd_data_logic;
     wire lcd_rs_logic, lcd_rw_logic, lcd_e_logic;
-    
     wire is_brake_active;
     assign is_brake_active = (KEY_7 || KEY_STAR);
     
@@ -131,11 +157,9 @@ module Car_Simulator_Top (
         .turn_left(led_l), .turn_right(led_r), 
         .fc_red(fc_r_w), .fc_green(fc_g_w), .fc_blue(fc_b_w), .led_port(led_logic_out)
     );
-
-    // [수정된 LED 로직] 
-    // 시동이 꺼져도 깜빡이(Turn Signal)는 동작하도록 수정
+    
     assign LED = (engine_on) ? led_logic_out : 
-                 ((led_logic_out & 8'b11000011) | 
+                 ((DIP_SW[2] ? (led_logic_out & 8'b11000011) : 8'b0) | 
                   (is_brake_active ? 8'b00111100 : 8'b0));
                   
     assign FC_RED   = (engine_on) ? fc_r_w : 4'd0;
@@ -150,26 +174,23 @@ module Car_Simulator_Top (
     );
 
     // ========================================================
-    // ★ [수정됨] Display_Unit 인스턴스
-    // 1. accel 포트 삭제
-    // 2. rst: STATE_OFF일 때 리셋(화면 꺼짐). ACC/RUN일 때 켜짐.
+    // ★ Display_Unit
     // ========================================================
     Display_Unit u_disp (
         .clk(CLK), 
-        // 시동 OFF(0)일 때는 리셋(화면 소등), ACC(1)나 RUN(2)일 때 동작
         .rst(global_safe_rst || (power_state == STATE_OFF)), 
-        
         .tick_scan(tick_scn), 
         .obd_mode_sw(DIP_SW[7]), 
         
-        // ACC 모드(엔진 OFF)일 때는 RPM, Speed 0 전달
+        // [중요] Low 모드 신호 전달 -> 1-Digit 화면 변경용
+        .is_low_mode(DIP_SW[6]),
+        
         .rpm(engine_on ? rpm_w : 14'd0), 
         .speed(engine_on ? spd_w : 8'd0), 
-        .fuel(fuel_w), // 연료량은 ACC에서도 보임
-        .temp(temp_w), // 온도도 ACC에서 보임
-        
-        .gear_char(gear_reg), // 기어는 항상 연결
-        .gear_num(gear_num_w), // [추가] 기어 단수 연결
+        .fuel(fuel_w), 
+        .temp(temp_w), 
+        .gear_char(gear_reg), 
+        .gear_num(gear_num_w), 
         
         .seg_data(SEG_DATA), 
         .seg_com(SEG_COM), 
@@ -179,7 +200,8 @@ module Car_Simulator_Top (
     LCD_Module u_lcd (
         .clk(CLK), .rst(global_safe_rst), 
         .engine_on(engine_on), .is_off(power_state == STATE_OFF), 
-        .odometer(odo_w), .fuel(fuel_w), .is_side_brake(DIP_SW[6]), 
+        .odometer(odo_w), .fuel(fuel_w), 
+        .is_side_brake(DIP_SW[5]), 
         .lcd_rs(lcd_rs_logic), .lcd_rw(lcd_rw_logic), .lcd_e(lcd_e_logic), .lcd_data(lcd_data_logic)
     );
     
