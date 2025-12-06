@@ -55,15 +55,13 @@ module Vehicle_Logic (
             decel_counter <= 0;
             gear_num <= 1;
         end
-        else if (!engine_on) begin 
-            speed <= 0; 
-            ess_trigger <= 0;
-        end
+        // [수정] 엔진 꺼져도 관성 주행 가능하도록 speed <= 0 로직 삭제
         else if (tick_speed) begin
             // A. 힘(Power) 계산
-            if (current_gear == 4'd12) power = effective_accel;       // D: 100%
-            else if (current_gear == 4'd6) power = effective_accel / 2; // R: 50%
-            else power = 0; // P, N: 동력 전달 안됨
+            // [수정] 엔진 켜져있을 때만 동력 전달
+            if (engine_on && current_gear == 4'd12) power = effective_accel;       // D: 100%
+            else if (engine_on && current_gear == 4'd6) power = effective_accel / 2; // R: 50%
+            else power = 0; // P, N 또는 엔진 꺼짐: 동력 전달 안됨
 
             // B. 저항(Resistance) 계산 (속도가 빠를수록 저항 증가)
             // [수정] 180km/h 이상에서 공기 저항 급증 (최고 속도 제한 효과 + 떨림 구현)
