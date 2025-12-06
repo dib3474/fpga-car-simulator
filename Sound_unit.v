@@ -14,35 +14,72 @@ module Sound_Unit (
 );
 
     // =========================================================
-    // 1. Reverse Warning Sound ("Beep- Beep-")
+    // 1. Reverse Warning Sound ("Fur Elise")
     // =========================================================
-    reg [25:0] reverse_cnt; // Counter for 1Hz cycle (0.5s ON, 0.5s OFF)
-    reg reverse_beep_en;    // Enable beep during ON time
-    
+    // Frequencies (50MHz / (Freq * 2))
+    localparam NOTE_E5  = 37921;
+    localparam NOTE_DS5 = 40176;
+    localparam NOTE_B4  = 50619;
+    localparam NOTE_D5  = 42565;
+    localparam NOTE_C5  = 47778;
+    localparam NOTE_A4  = 56818;
+    localparam NOTE_REST = 0;
+
+    reg [3:0] note_idx;
+    reg [24:0] note_timer; 
+    reg [19:0] current_tone_period;
+    reg reverse_melody_active; 
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            reverse_cnt <= 0;
-            reverse_beep_en <= 0;
+            note_idx <= 0;
+            note_timer <= 0;
+            current_tone_period <= 0;
+            reverse_melody_active <= 0;
         end else begin
             if (is_reverse && engine_on) begin
-                if (reverse_cnt >= 50_000_000) reverse_cnt <= 0; // 1 second period
-                else reverse_cnt <= reverse_cnt + 1;
+                reverse_melody_active <= 1;
                 
-                // Beep for first 0.5 sec
-                reverse_beep_en <= (reverse_cnt < 25_000_000);
+                // 0.15 sec per note (7,500,000)
+                if (note_timer >= 7_500_000) begin
+                    note_timer <= 0;
+                    if (note_idx >= 12) note_idx <= 0; // Loop
+                    else note_idx <= note_idx + 1;
+                end else begin
+                    note_timer <= note_timer + 1;
+                end
+
+                case (note_idx)
+                    0: current_tone_period <= NOTE_E5;
+                    1: current_tone_period <= NOTE_DS5;
+                    2: current_tone_period <= NOTE_E5;
+                    3: current_tone_period <= NOTE_DS5;
+                    4: current_tone_period <= NOTE_E5;
+                    5: current_tone_period <= NOTE_B4;
+                    6: current_tone_period <= NOTE_D5;
+                    7: current_tone_period <= NOTE_C5;
+                    8: current_tone_period <= NOTE_A4;
+                    9: current_tone_period <= NOTE_A4; // Hold A4
+                    10: current_tone_period <= NOTE_REST; // Pause
+                    11: current_tone_period <= NOTE_REST; // Pause
+                    12: current_tone_period <= NOTE_REST; // Pause
+                    default: current_tone_period <= NOTE_REST;
+                endcase
             end else begin
-                reverse_cnt <= 0;
-                reverse_beep_en <= 0;
+                reverse_melody_active <= 0;
+                note_idx <= 0;
+                note_timer <= 0;
+                current_tone_period <= 0;
             end
         end
     end
 
-    reg [15:0] reverse_tone_cnt;
+    reg [19:0] reverse_tone_cnt;
     reg reverse_wave;
-    // 1kHz Tone for Reverse
+    
     always @(posedge clk) begin
-        if (reverse_beep_en) begin
-            if (reverse_tone_cnt >= 25000) begin 
+        if (reverse_melody_active && current_tone_period > 0) begin
+            if (reverse_tone_cnt >= current_tone_period) begin 
                 reverse_tone_cnt <= 0;
                 reverse_wave <= ~reverse_wave;
             end else reverse_tone_cnt <= reverse_tone_cnt + 1;
@@ -130,8 +167,8 @@ module Sound_Unit (
         else if (click_sound_active) begin
             piezo_out = click_wave; // Priority 2: Turn Signal Click
         end 
-        else if (reverse_beep_en) begin
-            piezo_out = reverse_wave; // Priority 3: Reverse Beep
+        else if (reverse_melody_active) begin
+            piezo_out = reverse_wave; // Priority 3: Reverse Melody
         end
         else begin
             piezo_out = 1'b0; // Silence (Engine sound removed)

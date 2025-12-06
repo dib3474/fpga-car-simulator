@@ -21,7 +21,7 @@ module Vehicle_Logic (
     
     // [개선] 불감대(Dead Zone) 적용: 노이즈 제거
     wire [7:0] effective_accel;
-    assign effective_accel = (adc_accel > 50) ? (adc_accel - 50) : 8'd0;
+    assign effective_accel = (adc_accel > 5) ? (adc_accel - 5) : 8'd0;
 
     // 계산용 임시 변수
     reg [13:0] calc_rpm; 

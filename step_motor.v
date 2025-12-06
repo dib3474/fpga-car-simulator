@@ -1,39 +1,39 @@
 module Step_Motor_Controller (
     input clk,              // 50MHz
     input rst,
-    input engine_on,        // ½Ãµ¿ ¿©ºÎ
-    input key_left,         // 4¹ø Å° (ÁÂÈ¸Àü)
-    input key_right,        // 5¹ø Å° (¿ìÈ¸Àü)
-    input key_center,       // 2¹ø Å° (¿øÀ§Ä¡ º¹±Í)
-    output reg [3:0] step_out // ¸ğÅÍ Ãâ·Â
+    input engine_on,        // ï¿½Ãµï¿½ ï¿½ï¿½ï¿½ï¿½
+    input key_left,         // 4ï¿½ï¿½ Å° (ï¿½ï¿½È¸ï¿½ï¿½)
+    input key_right,        // 5ï¿½ï¿½ Å° (ï¿½ï¿½È¸ï¿½ï¿½)
+    input key_center,       // 2ï¿½ï¿½ Å° (ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½)
+    output reg [3:0] step_out // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
 );
 
-    // --- 1. ¼Óµµ ¹× °Å¸® ¼³Á¤ ---
+    // --- 1. ï¿½Óµï¿½ ï¿½ï¿½ ï¿½Å¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ---
     
-    // [ÆÄ¿ö ÇÚµé ON] ½Ãµ¿ ÄÑÁ³À» ¶§ ¼Óµµ (±âÁ¸ ¼Óµµ)
+    // [ï¿½Ä¿ï¿½ ï¿½Úµï¿½ ON] ï¿½Ãµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Óµï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½)
     parameter SPEED_FAST = 900_000; 
     
-    // [ÆÄ¿ö ÇÚµé OFF] ½Ãµ¿ ²¨Á³À» ¶§ ¼Óµµ (4¹è ´À¸®°Ô -> ¹«°Å¿î ´À³¦)
+    // [ï¿½Ä¿ï¿½ ï¿½Úµï¿½ OFF] ï¿½Ãµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Óµï¿½ (4ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ -> ï¿½ï¿½ï¿½Å¿ï¿½ ï¿½ï¿½ï¿½ï¿½)
     parameter SPEED_SLOW = 1_600_000; 
 
-    // ÇÑ ¹ÙÄû ¹İ Á¦ÇÑ (»ç¿ëÀÚ ¼³Á¤°ª À¯Áö)
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     parameter LIMIT_POS = 75; 
 
-    reg [21:0] cnt; // Ä«¿îÅÍ ºñÆ®¼ö ³Ë³ËÇÏ°Ô Áõ°¡ (20->21)
+    reg [21:0] cnt; // Ä«ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ë³ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ (20->21)
     reg tick;
     reg [2:0] step_idx; 
     reg signed [31:0] current_pos; 
 
-    // ÇöÀç »óÅÂ¿¡ µû¸¥ ¼Óµµ °áÁ¤ (Mux)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ (Mux)
     wire [21:0] current_speed_limit;
     assign current_speed_limit = (engine_on) ? SPEED_FAST : SPEED_SLOW;
 
-    // --- 2. ¼Óµµ(Tick) »ı¼º ---
+    // --- 2. ï¿½Óµï¿½(Tick) ï¿½ï¿½ï¿½ï¿½ ---
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             cnt <= 0; tick <= 0;
         end else begin
-            // engine_on ¿©ºÎ¿¡ µû¶ó ¸ñÇ¥ Ä«¿îÆ®(current_speed_limit)°¡ ´Ş¶óÁü
+            // engine_on ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ Ä«ï¿½ï¿½Æ®(current_speed_limit)ï¿½ï¿½ ï¿½Ş¶ï¿½ï¿½ï¿½
             if (cnt >= current_speed_limit) begin
                 cnt <= 0; tick <= 1;
             end else begin
@@ -42,33 +42,33 @@ module Step_Motor_Controller (
         end
     end
 
-    // --- 3. ¸ğÅÍ Á¦¾î ·ÎÁ÷ ---
+    // --- 3. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ---
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             step_idx <= 0;
             step_out <= 4'b0000;
             current_pos <= 0; 
         end else if (tick) begin 
-            // [¼öÁ¤µÊ] && engine_on Á¶°Ç Á¦°Å! 
-            // ÀÌÁ¦ ½Ãµ¿ÀÌ ²¨Á®µµ tick(´À¸° ¼Óµµ)¸¸ ¹ß»ıÇÏ¸é ¿òÁ÷ÀÔ´Ï´Ù.
+            // [ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½] && engine_on ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½! 
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½Ãµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ tick(ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½)ï¿½ï¿½ ï¿½ß»ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 
-            // (1) ÁÂÈ¸Àü (4¹ø Å°)
+            // (1) ì¢ŒíšŒì „ (4ë²ˆ í‚¤) -> ë°˜ëŒ€ë¡œ ë™ì‘í•˜ë„ë¡ ìˆ˜ì • (ê°ì†Œ)
             if (key_left && !key_right) begin
-                if (current_pos < LIMIT_POS) begin
-                    step_idx <= step_idx + 1;
-                    current_pos <= current_pos + 1;
-                end
-            end 
-            
-            // (2) ¿ìÈ¸Àü (5¹ø Å°)
-            else if (key_right && !key_left) begin
                 if (current_pos > -LIMIT_POS) begin
                     step_idx <= step_idx - 1;
                     current_pos <= current_pos - 1;
                 end
+            end 
+            
+            // (2) ìš°íšŒì „ (5ë²ˆ í‚¤) -> ë°˜ëŒ€ë¡œ ë™ì‘í•˜ë„ë¡ ìˆ˜ì • (ì¦ê°€)
+            else if (key_right && !key_left) begin
+                if (current_pos < LIMIT_POS) begin
+                    step_idx <= step_idx + 1;
+                    current_pos <= current_pos + 1;
+                end
             end
             
-            // (3) ¿øÀ§Ä¡ º¹±Í (2¹ø Å°)
+            // (3) ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ (2ï¿½ï¿½ Å°)
             else if (key_center) begin
                 if (current_pos > 0) begin       
                     step_idx <= step_idx - 1;    
@@ -79,7 +79,7 @@ module Step_Motor_Controller (
                 end
             end
             
-            // ½ºÅÜ Ãâ·Â
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
             case (step_idx)
                 3'd0: step_out <= 4'b1000;
                 3'd1: step_out <= 4'b1100;
@@ -91,8 +91,8 @@ module Step_Motor_Controller (
                 3'd7: step_out <= 4'b1001;
             endcase
         end 
-        // [¼öÁ¤µÊ] else if (!engine_on) »èÁ¦. 
-        // ½Ãµ¿ ²¨Á®µµ ¸ğÅÍ¿¡ Àü¿øÀÌ µé¾î°¡¾ß ÇÚµéÀ» µ¹¸± ¼ö ÀÖÀ½ (ÅäÅ© À¯Áö or È¸Àü)
+        // [ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½] else if (!engine_on) ï¿½ï¿½ï¿½ï¿½. 
+        // ï¿½Ãµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½î°¡ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½Å© ï¿½ï¿½ï¿½ï¿½ or È¸ï¿½ï¿½)
     end
 
 endmodule
