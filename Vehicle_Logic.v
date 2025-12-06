@@ -9,8 +9,8 @@ module Vehicle_Logic (
     // [입력]
     input is_side_brake,    
     input is_low_mode,      // DIP 6번
-    input btn_gear_up,      // Top에서 KEY_6 연결됨
-    input btn_gear_down,    // Top에서 KEY_SHARP 연결됨
+    input btn_gear_up,      // KEY_6
+    input btn_gear_down,    // KEY_SHARP
 
     output reg [7:0] speed = 0,
     output reg [13:0] rpm = 0,
@@ -21,17 +21,32 @@ module Vehicle_Logic (
     output reg [2:0] gear_num = 1
 );
     parameter IDLE_RPM = 800;
+    parameter FUEL_THRESHOLD = 5000; 
     
     reg [9:0] power;      
     reg [10:0] resistance; 
     
-    wire [7:0] effective_accel;
-    assign effective_accel = (adc_accel > 5) ? (adc_accel - 5) : 8'd0;
-
-    // --- Low Mode Limit Control ---
+    // [수정] 블록 내부 변수 선언 문제 해결 -> 모듈 최상단으로 이동
+    reg [13:0] idle_calc;     // RPM 계산용 임시 변수
+    reg [15:0] drain_amount;  // 연료 소모량 계산용 임시 변수
+    
+    // Low Mode 관련 레지스터
     reg [2:0] max_gear_limit; 
     reg prev_up, prev_down;
 
+    // RPM 및 기어 계산용 레지스터
+    reg [2:0] auto_gear, final_gear;
+    reg [13:0] base_rpm;
+
+    // OBD 데이터 레지스터
+    reg [2:0] temp_timer;     
+    reg [15:0] dist_cm_acc;   
+    reg [15:0] fuel_accum; 
+
+    wire [7:0] effective_accel;
+    assign effective_accel = (adc_accel > 5) ? (adc_accel - 5) : 8'd0;
+
+    // --- [1] Low 기어 제한 설정 로직 ---
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             max_gear_limit <= 3; 
@@ -50,7 +65,7 @@ module Vehicle_Logic (
         end
     end
 
-    // --- Physics ---
+    // --- [2] 물리 엔진 ---
     always @(posedge clk or posedge rst) begin
         if (rst) begin speed <= 0; ess_trigger <= 0; end
         else if (!engine_on) begin speed <= 0; ess_trigger <= 0; end
@@ -87,14 +102,11 @@ module Vehicle_Logic (
         end
     end
 
-    // --- RPM & Gear ---
-    reg [2:0] auto_gear, final_gear;
-    reg [13:0] base_rpm;
-
+    // --- [3] RPM 및 기어 변속 로직 ---
     always @(*) begin
         if (!engine_on) begin rpm = 0; gear_num = 1; end
         else if (current_gear == 4'd3 || current_gear == 4'd9) begin 
-            reg [13:0] idle_calc;
+            // [수정] 변수 선언 제거 (위로 이동됨)
             idle_calc = IDLE_RPM + (effective_accel * 20);
             if (idle_calc > 4000) rpm = 4000; else rpm = idle_calc;
             gear_num = 1;
@@ -126,16 +138,12 @@ module Vehicle_Logic (
         end
     end
 
-    // --- OBD Data ---
-    reg [2:0] temp_timer;     
-    reg [15:0] dist_cm_acc;   
-    reg [15:0] fuel_accum; 
-    parameter FUEL_THRESHOLD = 5000; 
-
+    // --- [4] OBD Data (거리/온도/연료) ---
     always @(posedge clk or posedge rst) begin
         if (rst) begin 
             fuel <= 100; temp <= 25; odometer_raw <= 0; 
             temp_timer <= 0; dist_cm_acc <= 0; fuel_accum <= 0;
+            drain_amount <= 0;
         end
         else if (tick_1sec) begin
             if (engine_on && speed > 0) begin
@@ -161,7 +169,7 @@ module Vehicle_Logic (
             end
         end
         else if (tick_speed && engine_on) begin
-            reg [15:0] drain_amount;
+            // [수정] 변수 선언 제거 (위로 이동됨)
             drain_amount = 2; 
             drain_amount = drain_amount + (rpm / 1000); 
             if (effective_accel > 10) drain_amount = drain_amount + (effective_accel / 5); 
