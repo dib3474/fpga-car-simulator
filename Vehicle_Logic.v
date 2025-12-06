@@ -31,6 +31,7 @@ module Vehicle_Logic (
 
     // 계산용 임시 변수
     reg [13:0] calc_rpm; 
+    reg [13:0] base_rpm; 
 
     // =========================================================
     // 1. 물리 엔진 (속도 및 가속도 제어)
@@ -121,7 +122,6 @@ module Vehicle_Logic (
         else begin 
             // [수정] 경제 운전 모드: 변속 시점을 약 2500 RPM 부근으로 설정
             // 180km/h 최고 속도 기준 6단 변속
-            reg [13:0] base_rpm;
             if (speed < 30) begin base_rpm = IDLE_RPM + (speed * 60); gear_num = 1; end       // 1단
             else if (speed < 60) begin base_rpm = 1500 + ((speed - 30) * 35); gear_num = 2; end     // 2단
             else if (speed < 90) begin base_rpm = 1500 + ((speed - 60) * 35); gear_num = 3; end     // 3단
