@@ -17,15 +17,18 @@ module Sound_Unit (
     // 1. Reverse Warning Sound ("Fur Elise")
     // =========================================================
     // Frequencies (50MHz / (Freq * 2))
-    localparam NOTE_E5  = 37921;
-    localparam NOTE_DS5 = 40176;
-    localparam NOTE_B4  = 50619;
-    localparam NOTE_D5  = 42565;
-    localparam NOTE_C5  = 47778;
+    localparam NOTE_C4  = 95554;
+    localparam NOTE_E4  = 75842;
+    localparam NOTE_GS4 = 60197;
     localparam NOTE_A4  = 56818;
+    localparam NOTE_B4  = 50619;
+    localparam NOTE_C5  = 47778;
+    localparam NOTE_D5  = 42565;
+    localparam NOTE_DS5 = 40176;
+    localparam NOTE_E5  = 37921;
     localparam NOTE_REST = 0;
 
-    reg [3:0] note_idx;
+    reg [5:0] note_idx; // Increased to 6 bits for longer melody
     reg [24:0] note_timer; 
     reg [19:0] current_tone_period;
     reg reverse_melody_active; 
@@ -40,16 +43,17 @@ module Sound_Unit (
             if (is_reverse && engine_on) begin
                 reverse_melody_active <= 1;
                 
-                // 0.15 sec per note (7,500,000)
-                if (note_timer >= 7_500_000) begin
+                // 0.25 sec per note (12,500,000) - Slower
+                if (note_timer >= 12_500_000) begin
                     note_timer <= 0;
-                    if (note_idx >= 12) note_idx <= 0; // Loop
+                    if (note_idx >= 45) note_idx <= 0; // Loop
                     else note_idx <= note_idx + 1;
                 end else begin
                     note_timer <= note_timer + 1;
                 end
 
                 case (note_idx)
+                    // Phrase 1
                     0: current_tone_period <= NOTE_E5;
                     1: current_tone_period <= NOTE_DS5;
                     2: current_tone_period <= NOTE_E5;
@@ -59,10 +63,53 @@ module Sound_Unit (
                     6: current_tone_period <= NOTE_D5;
                     7: current_tone_period <= NOTE_C5;
                     8: current_tone_period <= NOTE_A4;
-                    9: current_tone_period <= NOTE_A4; // Hold A4
-                    10: current_tone_period <= NOTE_REST; // Pause
-                    11: current_tone_period <= NOTE_REST; // Pause
-                    12: current_tone_period <= NOTE_REST; // Pause
+                    9: current_tone_period <= NOTE_A4; // Hold
+                    10: current_tone_period <= NOTE_REST;
+                    
+                    // Phrase 2
+                    11: current_tone_period <= NOTE_C4;
+                    12: current_tone_period <= NOTE_E4;
+                    13: current_tone_period <= NOTE_A4;
+                    14: current_tone_period <= NOTE_B4;
+                    15: current_tone_period <= NOTE_B4; // Hold
+                    16: current_tone_period <= NOTE_REST;
+
+                    // Phrase 3
+                    17: current_tone_period <= NOTE_E4;
+                    18: current_tone_period <= NOTE_GS4;
+                    19: current_tone_period <= NOTE_B4;
+                    20: current_tone_period <= NOTE_C5;
+                    21: current_tone_period <= NOTE_C5; // Hold
+                    22: current_tone_period <= NOTE_REST;
+
+                    // Phrase 4 (Repeat Phrase 1)
+                    23: current_tone_period <= NOTE_E4;
+                    24: current_tone_period <= NOTE_E5;
+                    25: current_tone_period <= NOTE_DS5;
+                    26: current_tone_period <= NOTE_E5;
+                    27: current_tone_period <= NOTE_DS5;
+                    28: current_tone_period <= NOTE_E5;
+                    29: current_tone_period <= NOTE_B4;
+                    30: current_tone_period <= NOTE_D5;
+                    31: current_tone_period <= NOTE_C5;
+                    32: current_tone_period <= NOTE_A4;
+                    33: current_tone_period <= NOTE_A4; // Hold
+                    34: current_tone_period <= NOTE_REST;
+
+                    // Phrase 5 (Ending)
+                    35: current_tone_period <= NOTE_C4;
+                    36: current_tone_period <= NOTE_E4;
+                    37: current_tone_period <= NOTE_A4;
+                    38: current_tone_period <= NOTE_B4;
+                    39: current_tone_period <= NOTE_B4; // Hold
+                    40: current_tone_period <= NOTE_REST;
+                    
+                    41: current_tone_period <= NOTE_E4;
+                    42: current_tone_period <= NOTE_C5;
+                    43: current_tone_period <= NOTE_B4;
+                    44: current_tone_period <= NOTE_A4;
+                    45: current_tone_period <= NOTE_A4; // Hold (End of loop)
+
                     default: current_tone_period <= NOTE_REST;
                 endcase
             end else begin
