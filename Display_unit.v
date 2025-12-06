@@ -128,12 +128,12 @@ module Display_Unit (
             if (obd_mode_sw && gear_char == 4'd12) begin
                 // OBD 모드 & D단 -> 기어 단수 표시
                 case (gear_num)
-                    3'd1: seg_1_data = 8'h06; // 1
-                    3'd2: seg_1_data = 8'h5B; // 2
-                    3'd3: seg_1_data = 8'h4F; // 3
-                    3'd4: seg_1_data = 8'h66; // 4
-                    3'd5: seg_1_data = 8'h6D; // 5
-                    3'd6: seg_1_data = 8'h7D; // 6
+                    3'd1: seg_1_data = 8'b0110_0000; // 1
+                    3'd2: seg_1_data = 8'b1101_1010; // 2
+                    3'd3: seg_1_data = 8'b1111_0010; // 3
+                    3'd4: seg_1_data = 8'b0110_0110; // 4
+                    3'd5: seg_1_data = 8'b0110_1101; // 5
+                    3'd6: seg_1_data = 8'b0111_1101; // 6
                     default: seg_1_data = 8'b0000_0000;
                 endcase
             end else begin
