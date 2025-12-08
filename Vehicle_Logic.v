@@ -331,41 +331,40 @@ module Vehicle_Logic (
             // --- [C. 엔진 온도 로직 (Thermostat Simulation)] ---
             // 엔진은 90도(적정 온도)를 유지하려 하고, RPM이 높으면 과열됨
             if (engine_on) begin
-                // 목표 온도 계산: 기본 90도 + 부하(RPM/100)
-                // 예: 2000rpm -> 110도 타겟(팬이 돌아서 90 유지하려 함)
-                // 실제로는 천천히 변함
-                
-                // 가열 요인: RPM이 높거나 가속 중일 때
+                // 1. 가열 조건 (고부하: RPM > 2500 or Accel > 50%)
                 if (rpm > 2500 || effective_accel > 50) begin
-                    if (temp < 130) temp_acc <= temp_acc + 1;
-                end 
-                // 냉각 요인: 저부하 주행 시 90도로 복귀
-                else if (temp > 90) begin
-                    // 가열 멈춤 (temp_acc 리셋)
-                    // 90도 초과 시 천천히 식음 (쿨링 팬/라디에이터 효과)
-                    if (temp_acc >= 20) begin
-                        temp <= temp - 1;
-                        temp_acc <= 0;
-                    end else begin
+                    // 고부하 시 온도는 130도까지 상승 가능
+                    if (temp < 130) begin
                         temp_acc <= temp_acc + 1;
+                        // 가열 속도: RPM이 높을수록 빠름 (여기선 단순화하여 일정 속도)
+                        if (temp_acc >= 15) begin 
+                            temp <= temp + 1;
+                            temp_acc <= 0;
+                        end
+                    end
+                end 
+                // 2. 워밍업 (저부하 상태에서도 90도까지는 상승)
+                else if (temp < 90) begin
+                    temp_acc <= temp_acc + 1;
+                    if (temp_acc >= 20) begin // 천천히 상승
+                        temp <= temp + 1;
+                        temp_acc <= 0;
                     end
                 end
-                else if (temp < 90) begin
-                    // 워밍업
+                // 3. 냉각 (저부하 상태에서 90도 초과 시 냉각 팬 동작)
+                else if (temp > 90) begin
                     temp_acc <= temp_acc + 1;
+                    if (temp_acc >= 30) begin // 천천히 식음
+                        temp <= temp - 1;
+                        temp_acc <= 0;
+                    end
                 end
                 
-                // 온도 업데이트 (가열 로직)
-                // 위에서 temp_acc가 증가했을 때, 10에 도달하면 온도 상승
-                // 단, 냉각 모드(temp > 90)일 때는 위에서 처리했으므로 여기서는 무시해야 함
-                if (temp <= 90 && temp_acc >= 10) begin 
-                    temp <= temp + 1;
-                    temp_acc <= 0;
-                end
-                
-                // 과열 방지 (팬 동작 시뮬레이션): 95도 넘으면 강제 냉각
-                if (temp > 95) begin
-                    if (rpm < 3000) temp <= temp - 1; // 고부하 아니면 식음
+                // [Safety] 과열 방지 (115도 초과 시 강제 냉각 시도)
+                if (temp > 115) begin
+                    if (rpm < 4500) begin // 아주 고부하가 아니면 식힘
+                        if (temp_acc >= 10) temp <= temp - 1; 
+                    end
                 end
             end 
             else begin
