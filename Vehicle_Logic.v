@@ -283,6 +283,9 @@ module Vehicle_Logic (
                 default: base_rpm = IDLE_RPM;
             endcase
             
+            // [수정] 정차 중(속도 0)이거나 저속일 때도 최소 IDLE_RPM 유지
+            if (base_rpm < IDLE_RPM) base_rpm = IDLE_RPM;
+            
             // Underflow 방지 (음수가 될 경우 0 처리)
             if (base_rpm > 10000) base_rpm = IDLE_RPM; // 14bit overflow check (simple)
 
