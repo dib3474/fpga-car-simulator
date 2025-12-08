@@ -9,6 +9,9 @@ module Display_Unit (
     input [7:0] temp, 
     // input [7:0] accel,   // [삭제] 악셀 강도 제거
     input [3:0] gear_char, 
+    input [2:0] gear_num, // [추가] 현재 기어 단수 (1~6)
+    input is_low_gear_mode, // [추가]
+    input [2:0] max_gear_limit, // [추가]
     
     // 8-Digit 7-Segment
     output reg [7:0] seg_data = 0, 
@@ -120,16 +123,44 @@ module Display_Unit (
     // --- 4. 1-Digit Output (Gear) ---
     // [수정] 8-Digit와 동일한 비트 순서(LSB=a)로 코드값 변경
     // P(0x73), r(0x50), n(0x54), d(0x5E)
+    // OBD 모드이고 D단일 때 기어 단수(1~6) 표시
     always @(*) begin
         if (rst) seg_1_data = 8'h00;
         else begin
-            case (gear_char)
-                4'd3:  seg_1_data = 8'h73; // P (a,b,e,f,g)
-                4'd6:  seg_1_data = 8'h50; // r (e,g)
-                4'd9:  seg_1_data = 8'h54; // n (c,e,g)
-                4'd12: seg_1_data = 8'h5E; // d (b,c,d,e,g)
-                default: seg_1_data = 8'h00;
-            endcase
+            if (obd_mode_sw && gear_char == 4'd12) begin
+                // OBD 모드 & D단 -> 기어 단수 표시
+                case (gear_num)
+                    3'd1: seg_1_data = 8'b0110_0000; // 1
+                    3'd2: seg_1_data = 8'b1101_1010; // 2
+                    3'd3: seg_1_data = 8'b1111_0010; // 3
+                    3'd4: seg_1_data = 8'b0110_0110; // 4
+                    3'd5: seg_1_data = 8'b1011_0110; // 5
+                    3'd6: seg_1_data = 8'b0011_1110; // 6
+                    default: seg_1_data = 8'b0000_0000;
+                endcase
+            end else begin
+                // 일반 모드 또는 P/R/N -> 문자 표시
+                case (gear_char)
+                    4'd3:  seg_1_data = 8'hCE; // P (a,b,e,f,g) dont change
+                    4'd6:  seg_1_data = 8'h0A; // r (e,g)
+                    4'd9:  seg_1_data = 8'h2A; // n (c,e,g)
+                    4'd12: begin // d (b,c,d,e,g)
+                        if (is_low_gear_mode) begin
+                            // Low Gear Mode일 때는 설정된 Limit 표시 (1, 2, 3)
+                            // [수정] 비트 매핑 수정 (MSB=a, Bit-Reversed)
+                            case (max_gear_limit)
+                                3'd1: seg_1_data = 8'b0110_0000; // 1
+                                3'd2: seg_1_data = 8'b1101_1010; // 2
+                                3'd3: seg_1_data = 8'b1111_0010; // 3
+                                default: seg_1_data = 8'h7A; // d
+                            endcase
+                        end else begin
+                            seg_1_data = 8'h7A; // d
+                        end
+                    end
+                    default: seg_1_data = 8'h00;
+                endcase
+            end
         end
     end
 

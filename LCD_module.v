@@ -129,11 +129,21 @@ module LCD_Module (
         end
     end
 
-    // FSM (�״�� ����)
+    // FSM (LCD Control)
+    reg prev_is_off_fsm;
     always @(posedge clk or posedge rst) begin
-        if(rst) begin state<=S_DELAY_POW; cnt_delay<=0; char_idx<=0; lcd_e<=0; lcd_rs<=0; lcd_rw<=0; lcd_data<=0; wait_time<=2_000_000; end
+        if(rst) begin 
+            state<=S_DELAY_POW; cnt_delay<=0; char_idx<=0; lcd_e<=0; lcd_rs<=0; lcd_rw<=0; lcd_data<=0; wait_time<=2_000_000; 
+            prev_is_off_fsm <= 1;
+        end
         else begin
-            if(cnt_delay<wait_time) begin
+            prev_is_off_fsm <= is_off;
+            
+            // Re-initialize when turning ON (is_off 1->0)
+            if (prev_is_off_fsm && !is_off) begin
+                state<=S_DELAY_POW; cnt_delay<=0; char_idx<=0; lcd_e<=0; lcd_rs<=0; lcd_rw<=0; lcd_data<=0; wait_time<=2_000_000;
+            end
+            else if(cnt_delay<wait_time) begin
                 cnt_delay<=cnt_delay+1;
                 if(state!=S_DELAY_POW && cnt_delay==5000) lcd_e<=1; else if(cnt_delay==15000) lcd_e<=0;
             end else begin
