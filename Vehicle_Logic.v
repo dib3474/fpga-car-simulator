@@ -197,34 +197,34 @@ module Vehicle_Logic (
                 // =========================================================
                 if (current_gear == 4'd12) begin // D단
                     if (effective_accel == 0) begin
-                        // Gliding Mode (기존 로직 유지 - 낮은 RPM에서 다운쉬프트)
+                        // Gliding Mode (사용자 요청 값 적용)
                         if (speed < 20) gear_num <= 1;
-                        else if (speed < 50) gear_num <= 2;
-                        else if (speed < 75) gear_num <= 3;
-                        else if (speed < 100) gear_num <= 4;
-                        else if (speed < 125) gear_num <= 5;
+                        else if (speed < 31) gear_num <= 2;
+                        else if (speed < 50) gear_num <= 3;
+                        else if (speed < 71) gear_num <= 4;
+                        else if (speed < 105) gear_num <= 5;
                         else gear_num <= 6;
                     end else begin
                         // Normal Mode (Hysteresis 적용)
-                        // Upshift: ~2600-2700 RPM
-                        // Downshift: 6->5(1900), 5->4(1700), 4->3(1500), 3->2(1250), 2->1(1200)
+                        // Downshift: 105, 71, 50, 31, 20
+                        // Upshift: +5km/h (110, 76, 55, 36, 25)
                         case (gear_num)
-                            1: if (speed >= 27) gear_num <= 2;
+                            1: if (speed >= 25) gear_num <= 2;
                             2: begin
                                 if (speed < 20) gear_num <= 1;
-                                else if (speed >= 45) gear_num <= 3;
+                                else if (speed >= 36) gear_num <= 3;
                             end
                             3: begin
                                 if (speed < 31) gear_num <= 2;
-                                else if (speed >= 67) gear_num <= 4;
+                                else if (speed >= 55) gear_num <= 4;
                             end
                             4: begin
                                 if (speed < 50) gear_num <= 3;
-                                else if (speed >= 89) gear_num <= 5;
+                                else if (speed >= 76) gear_num <= 5;
                             end
                             5: begin
                                 if (speed < 71) gear_num <= 4;
-                                else if (speed >= 111) gear_num <= 6;
+                                else if (speed >= 110) gear_num <= 6;
                             end
                             6: begin
                                 if (speed < 105) gear_num <= 5;
