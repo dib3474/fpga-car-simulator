@@ -67,8 +67,8 @@ module Vehicle_Logic (
             // [수정] 180km/h 이상에서 공기 저항 급증 (최고 속도 제한 효과 + 떨림 구현)
             resistance = speed + 5 + ((speed >= 180) ? 100 : 0);
             
-            // [추가] 사이드 브레이크 저항 (매우 강력한 저항)
-            if (is_side_brake) resistance = resistance + 50;
+            // [수정] 사이드 브레이크 저항 (매우 강력한 저항 - 출발 억제)
+            if (is_side_brake) resistance = resistance + 120;
 
             // C. 속도 갱신 로직
             if (is_brake_hard) begin 
@@ -127,19 +127,49 @@ module Vehicle_Logic (
                 end 
                 // 자연 감속 (Power < Resistance)
                 else if (power < resistance) begin
-                    // [수정] 기어별 감속 비율 적용 (계단식 감속)
-                    decel_counter <= decel_counter + 1;
-                    
-                    if (speed > 0) begin
-                        case (gear_num)
-                            6: if (decel_counter >= 20) begin speed <= speed - 1; decel_counter <= 0; end
-                            5: if (decel_counter >= 15) begin speed <= speed - 1; decel_counter <= 0; end
-                            4: if (decel_counter >= 10) begin speed <= speed - 1; decel_counter <= 0; end
-                            3: if (decel_counter >= 6) begin speed <= speed - 1; decel_counter <= 0; end
-                            2: if (decel_counter >= 3) begin speed <= speed - 1; decel_counter <= 0; end
-                            1: if (decel_counter >= 1) begin speed <= speed - 1; decel_counter <= 0; end
-                            default: begin speed <= speed - 1; decel_counter <= 0; end
-                        endcase
+                    // [수정] 사이드 브레이크 감속 (강력한 마찰)
+                    if (is_side_brake) begin
+                        // 일반 브레이크보다는 약하지만 엔진 브레이크보다는 훨씬 강하게 감속
+                        // 속도에 상관없이 일정하게 감속 (마찰력)
+                        if (speed > 0) begin
+                            if (decel_counter >= 2) begin 
+                                speed <= speed - 1; 
+                                decel_counter <= 0; 
+                            end else begin
+                                decel_counter <= decel_counter + 1;
+                            end
+                        end
+                    end
+                    else begin
+                        // [수정] 기어별 감속 비율 적용 (계단식 감속) + 공기저항 반영
+                        decel_counter <= decel_counter + 1;
+                        
+                        if (speed > 0) begin
+                            case (gear_num)
+                                6: begin
+                                    // [수정] 고속 주행 시 공기저항으로 인한 빠른 감속
+                                    if (speed >= 170) begin 
+                                        if (decel_counter >= 2) begin speed <= speed - 1; decel_counter <= 0; end
+                                    end else if (speed >= 140) begin
+                                        if (decel_counter >= 5) begin speed <= speed - 1; decel_counter <= 0; end
+                                    end else begin
+                                        if (decel_counter >= 20) begin speed <= speed - 1; decel_counter <= 0; end
+                                    end
+                                end
+                                5: begin
+                                    if (speed >= 120) begin
+                                        if (decel_counter >= 8) begin speed <= speed - 1; decel_counter <= 0; end
+                                    end else begin
+                                        if (decel_counter >= 15) begin speed <= speed - 1; decel_counter <= 0; end
+                                    end
+                                end
+                                4: if (decel_counter >= 10) begin speed <= speed - 1; decel_counter <= 0; end
+                                3: if (decel_counter >= 6) begin speed <= speed - 1; decel_counter <= 0; end
+                                2: if (decel_counter >= 3) begin speed <= speed - 1; decel_counter <= 0; end
+                                1: if (decel_counter >= 1) begin speed <= speed - 1; decel_counter <= 0; end
+                                default: begin speed <= speed - 1; decel_counter <= 0; end
+                            endcase
+                        end
                     end
                 end
                 else begin

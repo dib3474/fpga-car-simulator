@@ -227,9 +227,9 @@ module Sound_Unit (
             // Higher RPM -> Lower Period -> Higher Pitch
             // [Modified] Lower base frequency and wider range for better feedback
             // Base (0 RPM) -> ~500,000 (50Hz)
-            // Max (8000 RPM) -> 500,000 - 400,000 = 100,000 (250Hz)
-            if (rpm > 9000) engine_period <= 100000; // Safety clamp
-            else engine_period <= 500000 - (rpm * 50);
+            // Max (8000 RPM) -> 500,000 - 464,000 = 36,000 (~694Hz)
+            if (rpm > 8000) engine_period <= 36000; // Safety clamp
+            else engine_period <= 500000 - (rpm * 58);
 
             // [Volume Control] Very Low Duty Cycle for Engine (Subtle background)
             if (engine_cnt >= (engine_period << 1)) begin
