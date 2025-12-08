@@ -40,9 +40,25 @@ module Vehicle_Logic (
 
     // [추가] RPM Jitter (0~3) - 엔진 진동 시뮬레이션
     reg [1:0] rpm_jitter;
+    reg [7:0] smooth_accel; // [추가] RPM 스무딩용
+
     always @(posedge clk or posedge rst) begin
-        if (rst) rpm_jitter <= 0;
-        else if (tick_speed) rpm_jitter <= rpm_jitter + 1;
+        if (rst) begin
+            rpm_jitter <= 0;
+            smooth_accel <= 0;
+        end
+        else if (tick_speed) begin
+            rpm_jitter <= rpm_jitter + 1;
+            
+            // [추가] 악셀 반응 스무딩 (RPM 급락 방지)
+            if (effective_accel > smooth_accel) begin
+                smooth_accel <= effective_accel; // 가속은 즉시
+            end else if (effective_accel < smooth_accel) begin
+                // 감속은 천천히 (RPM이 서서히 떨어지도록)
+                if (smooth_accel >= 8) smooth_accel <= smooth_accel - 8;
+                else smooth_accel <= effective_accel;
+            end
+        end
     end
 
     // =========================================================
@@ -68,7 +84,7 @@ module Vehicle_Logic (
             resistance = speed + 5 + ((speed >= 180) ? 100 : 0);
             
             // [수정] 사이드 브레이크 저항 (매우 강력한 저항 - 출발 억제)
-            if (is_side_brake) resistance = resistance + 120;
+            if (is_side_brake) resistance = resistance + 210;
 
             // C. 속도 갱신 로직
             if (is_brake_hard) begin 
@@ -258,12 +274,12 @@ module Vehicle_Logic (
             
             // 3. RPM 계산 (기어별 선형 보간)
             case (gear_num)
-                1: base_rpm = IDLE_RPM + (speed * 60); 
-                2: base_rpm = 450 + (speed * 35); // 1500 + (speed-30)*35 = 1500 + 35s - 1050 = 450 + 35s
-                3: base_rpm = (speed * 35) - 600; // 1500 + (speed-60)*35 = 1500 + 35s - 2100 = 35s - 600
-                4: base_rpm = (speed * 30) - 1100; // 1600 + (speed-90)*30 = 1600 + 30s - 2700 = 30s - 1100
-                5: base_rpm = (speed * 27) - 1540; // 1700 + (speed-120)*27 = 1700 + 27s - 3240 = 27s - 1540
-                6: base_rpm = (speed * 27) - 2250; // 1800 + (speed-150)*27 = 1800 + 27s - 4050 = 27s - 2250
+                1: base_rpm = speed * 100;  // 1단: 힘 좋음
+                2: base_rpm = speed * 60;   
+                3: base_rpm = speed * 40;   
+                4: base_rpm = speed * 30;   
+                5: base_rpm = speed * 24;   // 5단: 가속형
+                6: base_rpm = speed * 18;   // 6단: 항속형 (조용함)
                 default: base_rpm = IDLE_RPM;
             endcase
             
@@ -272,7 +288,8 @@ module Vehicle_Logic (
 
             // [수정] RPM에 부하(Throttle) 및 노이즈 반영
             // 가속 페달을 밟으면 RPM이 더 오름 (토크 컨버터 슬립 효과) + Jitter
-            rpm = base_rpm + (effective_accel * 2) + rpm_jitter;
+            // [수정] smooth_accel을 사용하여 악셀 OFF 시 RPM이 천천히 떨어지도록 함
+            rpm = base_rpm + (smooth_accel * 2) + rpm_jitter;
             
             // 주행 중 레드존 제한 (8000 RPM)
             if (rpm > 8000) rpm = 8000;
