@@ -329,48 +329,49 @@ module Vehicle_Logic (
             end
 
             // --- [C. 엔진 온도 로직 (Thermostat Simulation)] ---
-            // 엔진은 90도(적정 온도)를 유지하려 하고, RPM이 높으면 과열됨
-            if (engine_on) begin
-                // 1. 가열 조건 (고부하: RPM > 2500 or Accel > 50%)
-                if (rpm > 2500 || effective_accel > 50) begin
-                    // 고부하 시 온도는 130도까지 상승 가능
-                    if (temp < 130) begin
-                        temp_acc <= temp_acc + 1;
-                        // 가열 속도: RPM이 높을수록 빠름 (여기선 단순화하여 일정 속도)
-                        if (temp_acc >= 15) begin 
-                            temp <= temp + 1;
-                            temp_acc <= 0;
-                        end
-                    end
-                end 
-                // 2. 워밍업 (저부하 상태에서도 90도까지는 상승)
-                else if (temp < 90) begin
+            // 1. 과열 구간 (RPM > 3500): 엔진이 무리하게 돔 → 온도가 빠르게 상승 (최대 130도)
+            if (engine_on && rpm > 3500) begin
+                if (temp < 130) begin
                     temp_acc <= temp_acc + 1;
-                    if (temp_acc >= 20) begin // 천천히 상승
+                    if (temp_acc >= 3) begin // 빠르게 상승 (3초당 1도)
                         temp <= temp + 1;
                         temp_acc <= 0;
                     end
                 end
-                // 3. 냉각 (저부하 상태에서 90도 초과 시 냉각 팬 동작)
-                else if (temp > 90) begin
+            end
+            // 2. 정상/예열 구간 (RPM <= 3500)
+            else if (engine_on) begin
+                // 예열: 90도 미만이면 상승
+                if (temp < 90) begin
                     temp_acc <= temp_acc + 1;
-                    if (temp_acc >= 30) begin // 천천히 식음
-                        temp <= temp - 1;
+                    if (temp_acc >= 10) begin // 적당히 상승 (10초당 1도)
+                        temp <= temp + 1;
                         temp_acc <= 0;
                     end
                 end
-                
-                // [Safety] 과열 방지 (115도 초과 시 강제 냉각 시도)
-                if (temp > 115) begin
-                    if (rpm < 4500) begin // 아주 고부하가 아니면 식힘
-                        if (temp_acc >= 10) temp <= temp - 1; 
+                // 정상: 90도 이상이면 냉각팬 작동으로 유지/하강
+                else if (temp >= 90) begin
+                    if (temp > 90) begin
+                        temp_acc <= temp_acc + 1;
+                        if (temp_acc >= 15) begin // 천천히 하강 (15초당 1도)
+                            temp <= temp - 1;
+                            temp_acc <= 0;
+                        end
+                    end
+                    // 90도일 때는 유지 (temp_acc 리셋 안함 or 리셋)
+                    else begin
+                        temp_acc <= 0;
                     end
                 end
-            end 
+            end
+            // 3. 주차 구간 (시동 꺼짐): 상온(25도)까지 하강
             else begin
-                // [냉각] 시동 OFF 시 자연 냉각 (상온 25도까지)
                 if (temp > 25) begin
-                    temp <= temp - 1;
+                    temp_acc <= temp_acc + 1;
+                    if (temp_acc >= 20) begin // 아주 천천히 식음 (20초당 1도)
+                        temp <= temp - 1;
+                        temp_acc <= 0;
+                    end
                 end
             end
         end
