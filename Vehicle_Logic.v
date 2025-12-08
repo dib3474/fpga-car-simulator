@@ -206,27 +206,28 @@ module Vehicle_Logic (
                         else gear_num <= 6;
                     end else begin
                         // Normal Mode (Hysteresis 적용)
-                        // Upshift: ~2400 RPM, Downshift: ~1200 RPM
+                        // Upshift: ~2600-2700 RPM
+                        // Downshift: 6->5(1900), 5->4(1700), 4->3(1500), 3->2(1250), 2->1(1200)
                         case (gear_num)
                             1: if (speed >= 27) gear_num <= 2;
                             2: begin
-                                if (speed < 21) gear_num <= 1;
-                                else if (speed >= 56) gear_num <= 3;
+                                if (speed < 20) gear_num <= 1;
+                                else if (speed >= 45) gear_num <= 3;
                             end
                             3: begin
-                                if (speed < 51) gear_num <= 2;
-                                else if (speed >= 86) gear_num <= 4;
+                                if (speed < 31) gear_num <= 2;
+                                else if (speed >= 67) gear_num <= 4;
                             end
                             4: begin
-                                if (speed < 77) gear_num <= 3;
-                                else if (speed >= 117) gear_num <= 5;
+                                if (speed < 50) gear_num <= 3;
+                                else if (speed >= 89) gear_num <= 5;
                             end
                             5: begin
-                                if (speed < 101) gear_num <= 4;
-                                else if (speed >= 146) gear_num <= 6;
+                                if (speed < 71) gear_num <= 4;
+                                else if (speed >= 111) gear_num <= 6;
                             end
                             6: begin
-                                if (speed < 128) gear_num <= 5;
+                                if (speed < 105) gear_num <= 5;
                             end
                             default: gear_num <= 1;
                         endcase
