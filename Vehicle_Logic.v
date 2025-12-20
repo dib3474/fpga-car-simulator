@@ -339,16 +339,11 @@ module Vehicle_Logic (
             // 고RPM/가속: 추가 소모
             // 1. 8번 버튼을 누르고 있으면 연료 강제 감소 (우선 순위 높음)
             if (is_fuel_drain) begin
-                if (fuel > 0) fuel <= fuel - 7; // 1초에 7%씩 감소
-            end
-            
-            // 2. 버튼을 안 누르면 정상적인 주행 연비 계산
-            else if (engine_on) begin
-                fuel_acc <= fuel_acc + 10 + (rpm / 100) + effective_accel;
-
-                if (fuel_acc >= 5000) begin
-                    if (fuel > 0) fuel <= fuel - 1;
-                    fuel_acc <= 0;
+                if (fuel >= 8) begin
+                    fuel <= fuel - 8; 
+                end
+                else begin
+                    fuel <= 0; 
                 end
             end
 
