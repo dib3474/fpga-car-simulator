@@ -346,6 +346,15 @@ module Vehicle_Logic (
                     fuel <= 0; 
                 end
             end
+            else if (engine_on) begin
+                fuel_acc <= fuel_acc + 10 + (rpm / 100) + effective_accel;
+
+                if (fuel_acc >= 5000) begin
+                    // 여기도 안전장치: 0보다 클 때만 1 감소
+                    if (fuel > 0) fuel <= fuel - 1;
+                    fuel_acc <= 0;
+                end
+            end
 
             // --- [C. 엔진 온도 로직 (Thermostat Simulation)] ---
             // 1. 과열 구간 (RPM > 3500): 엔진이 무리하게 돔 → 온도가 빠르게 상승 (최대 130도)
