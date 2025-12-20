@@ -109,7 +109,7 @@ module Car_Simulator_Top (
             prev_key_6 <= KEY_6;
             prev_key_sharp <= KEY_SHARP;
 
-            if (KEY_3) gear_reg <= 4'd3;      // P
+            if (KEY_3 && spd_w == 0) gear_reg <= 4'd3;      // P
             else if (KEY_9) gear_reg <= 4'd9; // N
             
             // DIP_SW[5] ON: Low Gear Mode (기어 제한 설정)
