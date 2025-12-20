@@ -145,7 +145,8 @@ module Car_Simulator_Top (
         .is_low_gear_mode(DIP_SW[5]), .max_gear_limit(max_gear_limit), 
         .is_side_brake(DIP_SW[6]), // [추가] 사이드 브레이크 연결
         .adc_accel(adc_accel_w), 
-        .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7), 
+        .is_brake_normal(KEY_STAR), .is_brake_hard(KEY_7),
+        .is_fuel_drain(KEY_8), 
         .speed(spd_w), .rpm(rpm_w), .fuel(fuel_w), .temp(temp_w), .odometer_raw(odo_w), 
         .ess_trigger(ess_trig), .gear_num(gear_num_w)
     );
