@@ -8,7 +8,7 @@ module Vehicle_Logic (
     input is_side_brake, // [추가] 사이드 브레이크
     input [7:0] adc_accel,
     input is_brake_normal, input is_brake_hard,
-    
+    input is_fuel_drain,
     output reg [7:0] speed = 0,
     output reg [13:0] rpm = 0,
     output reg [7:0] fuel = 100,
@@ -337,13 +337,20 @@ module Vehicle_Logic (
             // --- [B. 연료 소비 로직 (RPM + Load)] ---
             // 공회전: 기본 소모
             // 고RPM/가속: 추가 소모
-            if (engine_on) begin
-                // 소모량 계산: 기본(10) + RPM비례(rpm/100) + 가속비례(accel)
-                // 예: 800rpm -> 10+8=18, 3000rpm -> 10+30=40
+            // 1. 8번 버튼을 누르고 있으면 연료 강제 감소 (우선 순위 높음)
+            if (is_fuel_drain) begin
+                if (fuel >= 8) begin
+                    fuel <= fuel - 8; 
+                end
+                else begin
+                    fuel <= 0; 
+                end
+            end
+            else if (engine_on) begin
                 fuel_acc <= fuel_acc + 10 + (rpm / 100) + effective_accel;
-                
-                // 누적치가 일정 수준(예: 5000) 넘으면 연료 1% 감소
+
                 if (fuel_acc >= 5000) begin
+                    // 여기도 안전장치: 0보다 클 때만 1 감소
                     if (fuel > 0) fuel <= fuel - 1;
                     fuel_acc <= 0;
                 end
