@@ -128,7 +128,10 @@ module Car_Simulator_Top (
                 if (KEY_6) begin             
                     if (spd_w == 0) gear_reg <= 4'd6; // R
                 end
-                else if (KEY_SHARP) gear_reg <= 4'd12; // D
+                else if (KEY_SHARP) begin
+                    // [수정] R->D 변속 시 속도가 0이어야 함 (안전장치)
+                    if (spd_w == 0) gear_reg <= 4'd12; // D
+                end
             end
         end
     end

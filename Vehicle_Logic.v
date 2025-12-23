@@ -40,9 +40,25 @@ module Vehicle_Logic (
 
     // [추가] RPM Jitter (0~3) - 엔진 진동 시뮬레이션
     reg [1:0] rpm_jitter;
+    reg [7:0] smooth_accel; // [추가] RPM 스무딩용
+
     always @(posedge clk or posedge rst) begin
-        if (rst) rpm_jitter <= 0;
-        else if (tick_speed) rpm_jitter <= rpm_jitter + 1;
+        if (rst) begin
+            rpm_jitter <= 0;
+            smooth_accel <= 0;
+        end
+        else if (tick_speed) begin
+            rpm_jitter <= rpm_jitter + 1;
+            
+            // [추가] 악셀 반응 스무딩 (RPM 급락 방지)
+            if (effective_accel > smooth_accel) begin
+                smooth_accel <= effective_accel; // 가속은 즉시
+            end else if (effective_accel < smooth_accel) begin
+                // 감속은 천천히 (RPM이 서서히 떨어지도록)
+                if (smooth_accel >= 8) smooth_accel <= smooth_accel - 8;
+                else smooth_accel <= effective_accel;
+            end
+        end
     end
 
     // =========================================================
@@ -68,7 +84,7 @@ module Vehicle_Logic (
             resistance = speed + 5 + ((speed >= 180) ? 100 : 0);
             
             // [수정] 사이드 브레이크 저항 (매우 강력한 저항 - 출발 억제)
-            if (is_side_brake) resistance = resistance + 120;
+            if (is_side_brake) resistance = resistance + 210;
 
             // C. 속도 갱신 로직
             if (is_brake_hard) begin 
@@ -181,36 +197,37 @@ module Vehicle_Logic (
                 // =========================================================
                 if (current_gear == 4'd12) begin // D단
                     if (effective_accel == 0) begin
-                        // Gliding Mode (기존 로직 유지 - 낮은 RPM에서 다운쉬프트)
+                        // Gliding Mode (사용자 요청 값 적용)
                         if (speed < 20) gear_num <= 1;
-                        else if (speed < 50) gear_num <= 2;
-                        else if (speed < 75) gear_num <= 3;
-                        else if (speed < 100) gear_num <= 4;
-                        else if (speed < 125) gear_num <= 5;
+                        else if (speed < 31) gear_num <= 2;
+                        else if (speed < 50) gear_num <= 3;
+                        else if (speed < 71) gear_num <= 4;
+                        else if (speed < 105) gear_num <= 5;
                         else gear_num <= 6;
                     end else begin
                         // Normal Mode (Hysteresis 적용)
-                        // Upshift: ~2400 RPM, Downshift: ~1200 RPM
+                        // Downshift: 105, 71, 50, 31, 20
+                        // Upshift: +5km/h (110, 76, 55, 36, 25)
                         case (gear_num)
-                            1: if (speed >= 27) gear_num <= 2;
+                            1: if (speed >= 25) gear_num <= 2;
                             2: begin
-                                if (speed < 21) gear_num <= 1;
-                                else if (speed >= 56) gear_num <= 3;
+                                if (speed < 20) gear_num <= 1;
+                                else if (speed >= 36) gear_num <= 3;
                             end
                             3: begin
-                                if (speed < 51) gear_num <= 2;
-                                else if (speed >= 86) gear_num <= 4;
+                                if (speed < 31) gear_num <= 2;
+                                else if (speed >= 55) gear_num <= 4;
                             end
                             4: begin
-                                if (speed < 77) gear_num <= 3;
-                                else if (speed >= 117) gear_num <= 5;
+                                if (speed < 50) gear_num <= 3;
+                                else if (speed >= 76) gear_num <= 5;
                             end
                             5: begin
-                                if (speed < 101) gear_num <= 4;
-                                else if (speed >= 146) gear_num <= 6;
+                                if (speed < 71) gear_num <= 4;
+                                else if (speed >= 110) gear_num <= 6;
                             end
                             6: begin
-                                if (speed < 128) gear_num <= 5;
+                                if (speed < 105) gear_num <= 5;
                             end
                             default: gear_num <= 1;
                         endcase
@@ -258,21 +275,25 @@ module Vehicle_Logic (
             
             // 3. RPM 계산 (기어별 선형 보간)
             case (gear_num)
-                1: base_rpm = IDLE_RPM + (speed * 60); 
-                2: base_rpm = 450 + (speed * 35); // 1500 + (speed-30)*35 = 1500 + 35s - 1050 = 450 + 35s
-                3: base_rpm = (speed * 35) - 600; // 1500 + (speed-60)*35 = 1500 + 35s - 2100 = 35s - 600
-                4: base_rpm = (speed * 30) - 1100; // 1600 + (speed-90)*30 = 1600 + 30s - 2700 = 30s - 1100
-                5: base_rpm = (speed * 27) - 1540; // 1700 + (speed-120)*27 = 1700 + 27s - 3240 = 27s - 1540
-                6: base_rpm = (speed * 27) - 2250; // 1800 + (speed-150)*27 = 1800 + 27s - 4050 = 27s - 2250
+                1: base_rpm = speed * 100;  // 1단: 힘 좋음
+                2: base_rpm = speed * 60;   
+                3: base_rpm = speed * 40;   
+                4: base_rpm = speed * 30;   
+                5: base_rpm = speed * 24;   // 5단: 가속형
+                6: base_rpm = speed * 18;   // 6단: 항속형 (조용함)
                 default: base_rpm = IDLE_RPM;
             endcase
+            
+            // [수정] 정차 중(속도 0)이거나 저속일 때도 최소 IDLE_RPM 유지
+            if (base_rpm < IDLE_RPM) base_rpm = IDLE_RPM;
             
             // Underflow 방지 (음수가 될 경우 0 처리)
             if (base_rpm > 10000) base_rpm = IDLE_RPM; // 14bit overflow check (simple)
 
             // [수정] RPM에 부하(Throttle) 및 노이즈 반영
             // 가속 페달을 밟으면 RPM이 더 오름 (토크 컨버터 슬립 효과) + Jitter
-            rpm = base_rpm + (effective_accel * 2) + rpm_jitter;
+            // [수정] smooth_accel을 사용하여 악셀 OFF 시 RPM이 천천히 떨어지도록 함
+            rpm = base_rpm + (smooth_accel * 2) + rpm_jitter;
             
             // 주행 중 레드존 제한 (8000 RPM)
             if (rpm > 8000) rpm = 8000;
@@ -329,49 +350,49 @@ module Vehicle_Logic (
             end
 
             // --- [C. 엔진 온도 로직 (Thermostat Simulation)] ---
-            // 엔진은 90도(적정 온도)를 유지하려 하고, RPM이 높으면 과열됨
-            if (engine_on) begin
-                // 목표 온도 계산: 기본 90도 + 부하(RPM/100)
-                // 예: 2000rpm -> 110도 타겟(팬이 돌아서 90 유지하려 함)
-                // 실제로는 천천히 변함
-                
-                // 가열 요인: RPM이 높거나 가속 중일 때
-                if (rpm > 2500 || effective_accel > 50) begin
-                    if (temp < 130) temp_acc <= temp_acc + 1;
-                end 
-                // 냉각 요인: 저부하 주행 시 90도로 복귀
-                else if (temp > 90) begin
-                    // 가열 멈춤 (temp_acc 리셋)
-                    // 90도 초과 시 천천히 식음 (쿨링 팬/라디에이터 효과)
-                    if (temp_acc >= 20) begin
-                        temp <= temp - 1;
+            // 1. 과열 구간 (RPM > 3500): 엔진이 무리하게 돔 → 온도가 빠르게 상승 (최대 130도)
+            if (engine_on && rpm > 3500) begin
+                if (temp < 130) begin
+                    temp_acc <= temp_acc + 1;
+                    if (temp_acc >= 3) begin // 빠르게 상승 (3초당 1도)
+                        temp <= temp + 1;
                         temp_acc <= 0;
-                    end else begin
-                        temp_acc <= temp_acc + 1;
                     end
                 end
-                else if (temp < 90) begin
-                    // 워밍업
+            end
+            // 2. 정상/예열 구간 (RPM <= 3500)
+            else if (engine_on) begin
+                // 예열: 90도 미만이면 상승
+                if (temp < 90) begin
                     temp_acc <= temp_acc + 1;
+                    if (temp_acc >= 10) begin // 적당히 상승 (10초당 1도)
+                        temp <= temp + 1;
+                        temp_acc <= 0;
+                    end
                 end
-                
-                // 온도 업데이트 (가열 로직)
-                // 위에서 temp_acc가 증가했을 때, 10에 도달하면 온도 상승
-                // 단, 냉각 모드(temp > 90)일 때는 위에서 처리했으므로 여기서는 무시해야 함
-                if (temp <= 90 && temp_acc >= 10) begin 
-                    temp <= temp + 1;
-                    temp_acc <= 0;
+                // 정상: 90도 이상이면 냉각팬 작동으로 유지/하강
+                else if (temp >= 90) begin
+                    if (temp > 90) begin
+                        temp_acc <= temp_acc + 1;
+                        if (temp_acc >= 15) begin // 천천히 하강 (15초당 1도)
+                            temp <= temp - 1;
+                            temp_acc <= 0;
+                        end
+                    end
+                    // 90도일 때는 유지 (temp_acc 리셋 안함 or 리셋)
+                    else begin
+                        temp_acc <= 0;
+                    end
                 end
-                
-                // 과열 방지 (팬 동작 시뮬레이션): 95도 넘으면 강제 냉각
-                if (temp > 95) begin
-                    if (rpm < 3000) temp <= temp - 1; // 고부하 아니면 식음
-                end
-            end 
+            end
+            // 3. 주차 구간 (시동 꺼짐): 상온(25도)까지 하강
             else begin
-                // [냉각] 시동 OFF 시 자연 냉각 (상온 25도까지)
                 if (temp > 25) begin
-                    temp <= temp - 1;
+                    temp_acc <= temp_acc + 1;
+                    if (temp_acc >= 20) begin // 아주 천천히 식음 (20초당 1도)
+                        temp <= temp - 1;
+                        temp_acc <= 0;
+                    end
                 end
             end
         end

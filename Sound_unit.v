@@ -225,11 +225,11 @@ module Sound_Unit (
         if (engine_on) begin
             // Simple RPM to Period mapping (Linear approximation)
             // Higher RPM -> Lower Period -> Higher Pitch
-            // [Modified] Lower base frequency and wider range for better feedback
-            // Base (0 RPM) -> ~500,000 (50Hz)
-            // Max (8000 RPM) -> 500,000 - 464,000 = 36,000 (~694Hz)
-            if (rpm > 8000) engine_period <= 36000; // Safety clamp
-            else engine_period <= 500000 - (rpm * 58);
+            // [Modified] Lowered base pitch significantly for idle (Speed 0).
+            // Base (0 RPM) -> 750,000 (~33Hz)
+            // Max (8000 RPM) -> 750,000 - (8000 * 75) = 150,000 (~166Hz)
+            if (rpm > 8000) engine_period <= 100000; // Safety clamp
+            else engine_period <= 400000 - (rpm * 50);
 
             // [Volume Control] Very Low Duty Cycle for Engine (Subtle background)
             if (engine_cnt >= (engine_period << 1)) begin
@@ -238,8 +238,8 @@ module Sound_Unit (
                 engine_cnt <= engine_cnt + 1;
             end
             
-            // 6.25% Duty Cycle (Shift 4)
-            engine_wave <= (engine_cnt < (engine_period >> 3));
+            // 6.25% Duty Cycle (Shift 4) - Fixed mismatch between comment and code
+            engine_wave <= (engine_cnt < (engine_period >> 4));
         end else begin
             engine_wave <= 0;
             engine_cnt <= 0;
